@@ -6,6 +6,8 @@ import Control.Monad.Eff
 import Control.Monad.Eff.Exception (Error)
 import Data.Foreign
 
+foreign import data POUCHDB :: !
+
 foreign import data PouchDB :: *
 
 type PouchDoc = Foreign
@@ -18,5 +20,5 @@ foreign import f_info :: forall e a.
   ({db_name :: String, doc_count :: Number, update_seq :: Number} -> Eff a Unit)
   -> Eff a Unit
 
-info :: forall e. PouchDB -> Aff e {db_name :: String, doc_count :: Number, update_seq :: Number}
+info :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) {db_name :: String, doc_count :: Number, update_seq :: Number}
 info db = makeAff (\e s -> f_info db e s)
