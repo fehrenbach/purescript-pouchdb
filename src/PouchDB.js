@@ -15,8 +15,16 @@ exports.f_info = function (db) {
                         k_err(err)();
                     else
                         k_res(res)();
-                })
-            }
-        }
-    }
-}
+                })}}}}
+
+exports.f_put = function (db) {
+    return function (doc) {
+        return function (k_err) {
+            return function (k_res) {
+                return function () {
+                    db.put(doc, function (err, res) {
+                        if (err)
+                            k_err(err)();
+                        else
+                            k_res(res)();
+                    })}}}}}
