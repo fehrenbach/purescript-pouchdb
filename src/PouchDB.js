@@ -6,7 +6,7 @@ exports.pouchDB = function (name) {
     return new _pouchdb(name)
 }
 
-exports.info = function (db) {
+exports.f_info = function (db) {
     return function (k_err) {
         return function (k_res) {
             return function () {
