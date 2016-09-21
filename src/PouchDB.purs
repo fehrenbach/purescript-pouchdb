@@ -12,6 +12,9 @@ foreign import data PouchDB :: *
 
 type Document = Foreign
 
+newtype Id = Id String
+newtype Rev = Rev String
+
 foreign import pouchDB :: String -> PouchDB
 
 foreign import f_info :: forall e.
@@ -27,7 +30,7 @@ foreign import f_put :: forall e.
   PouchDB ->
   Document ->
   (Error -> Eff e Unit) ->
-  ({ok :: Boolean, id :: String, rev :: String} -> Eff e Unit) ->
+  ({ok :: Boolean, id :: Id, rev :: Rev} -> Eff e Unit) ->
   Eff e Unit
 
 -- put is a bit weird: in some cases (document not already in the database) it accepts
@@ -38,5 +41,15 @@ foreign import f_put :: forall e.
 -- - in this sense, post is another special case of put which does not even require _id
 -- In JavaScript this is all fine, because we expect every field to be potentially null/undefined.
 -- It looks like in PureScript having unsaved documents lying around might be slightly awkward.
-put :: forall e. PouchDB -> Document -> Aff (pouchdb :: POUCHDB | e) {ok :: Boolean, id :: String, rev :: String}
+put :: forall e. PouchDB -> Document -> Aff (pouchdb :: POUCHDB | e) {ok :: Boolean, id :: Id, rev :: Rev}
 put db doc = makeAff (\e s -> f_put db doc e s)
+
+foreign import f_get :: forall e.
+  PouchDB ->
+  Id ->
+  (Error -> Eff e Unit) ->
+  (Document -> Eff e Unit) ->
+  Eff e Unit
+
+get :: forall e. PouchDB -> Id -> Aff (pouchdb :: POUCHDB | e) Document
+get db id = makeAff (\e s -> f_get db id e s)

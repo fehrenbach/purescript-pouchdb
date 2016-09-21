@@ -20,5 +20,7 @@ main = launchAff $ do
   log i'
   bar <- put db (toForeign foo)
   log (unsafeCoerce bar)
+  bar' <- get db (Id "test5")
+  log (unsafeCoerce bar')
   i' <- info db
   log (unsafeCoerce i')
