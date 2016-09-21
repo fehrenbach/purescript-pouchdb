@@ -22,5 +22,9 @@ main = launchAff $ do
   log (unsafeCoerce bar)
   bar' <- get db (Id "test5")
   log (unsafeCoerce bar')
+  test5 <- get db (Id "test5")
+  log (unsafeCoerce test5)
+  deleted <- remove db test5
+  log (unsafeCoerce deleted)
   i' <- info db
   log (unsafeCoerce i')

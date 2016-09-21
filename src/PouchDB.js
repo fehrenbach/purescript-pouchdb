@@ -40,3 +40,15 @@ exports.f_get = function (db) {
                         else
                             k_res(res)();
                     })}}}}}
+
+exports.f_remove = function (db) {
+    return function (doc) {
+        return function (k_err) {
+            return function (k_res) {
+                return function () {
+                    db.remove(doc, function (err, res) {
+                        if (err)
+                            k_err(err)();
+                        else
+                            k_res(res)();
+                    })}}}}}
