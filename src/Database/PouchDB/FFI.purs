@@ -1,4 +1,4 @@
-module PouchDB where
+module Database.PouchDB.FFI where
 
 import Prelude
 import Control.Monad.Eff
@@ -39,8 +39,8 @@ foreign import get :: forall e.
 -- https://pouchdb.com/api.html#delete_document
 foreign import remove :: forall e.
   PouchDB ->
-  Foreign ->
-  Foreign ->
+  Foreign -> -- doc
+  Foreign -> -- options
   (Error -> Eff e Unit) ->
   (Foreign -> Eff e Unit) ->
   Eff e Unit
