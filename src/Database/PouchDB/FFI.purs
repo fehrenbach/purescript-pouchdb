@@ -1,9 +1,9 @@
 module Database.PouchDB.FFI where
 
-import Prelude
-import Control.Monad.Eff
+import Prelude (Unit)
+import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Exception (Error)
-import Data.Foreign
+import Data.Foreign (Foreign)
 
 foreign import data PouchDB :: *
 
@@ -48,10 +48,10 @@ foreign import remove :: forall e.
 -- https://pouchdb.com/api.html#batch_create
 foreign import bulkDocs :: forall e.
   PouchDB ->
-  [Foreign] ->
+  Array Foreign ->
   Foreign ->
   (Error -> Eff e Unit) ->
-  ([Foreign] -> Eff e Unit) ->
+  (Array Foreign -> Eff e Unit) ->
   Eff e Unit
 
 -- https://pouchdb.com/api.html#batch_fetch

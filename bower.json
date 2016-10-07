@@ -1,15 +1,17 @@
 {
-  "name": "purescript-pouchdb-ffi",
-  "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "output"
-  ],
-  "dependencies": {
-    "purescript-foreign": "^1.1.0"
-  },
-  "devDependencies": {
-    "purescript-psci-support": "^1.0.0"
-  }
+    "name": "purescript-pouchdb-ffi",
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "output"
+    ],
+    "dependencies": {
+        "purescript-eff": "^2.0.0",
+        "purescript-exceptions": "^1.0.0",
+        "purescript-foreign": "^1.1.0"
+    },
+    "devDependencies": {
+        "purescript-psci-support": "^2.0.0"
+    }
 }
