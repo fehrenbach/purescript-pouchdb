@@ -72,10 +72,19 @@ foreign import changes :: forall e.
   Eff e Foreign
 
 -- https://pouchdb.com/api.html#replication
--- TODO
+-- This returns an event emitter, like changes.
+foreign import replicate :: forall e.
+  PouchDB ->
+  PouchDB ->
+  Foreign ->
+  Eff e Foreign
 
 -- https://pouchdb.com/api.html#sync
--- TODO, or not
+foreign import sync :: forall e.
+  PouchDB ->
+  PouchDB ->
+  Foreign ->
+  Eff e Foreign
 
 -- https://pouchdb.com/api.html#save_attachment
 foreign import putAttachment :: forall e.

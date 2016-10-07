@@ -74,6 +74,20 @@ exports.changes = function (db) {
             return db.changes(options);
         }}}
 
+exports.replicate = function (source) {
+    return function (target) {
+        return function (options) {
+            return function () {
+                return _pouchdb.replicate(source, target, options);
+            }}}}
+
+exports.sync = function (source) {
+    return function (target) {
+        return function (options) {
+            return function () {
+                return _pouchdb.sync(source, target, options);
+            }}}}
+
 exports.putAttachment = function (db) {
     return function (docId) {
         return function (attachmentId) {
