@@ -120,7 +120,13 @@ foreign import removeAttachment :: forall e.
   Eff e Unit
 
 -- https://pouchdb.com/api.html#query_database
--- TODO
+foreign import query :: forall e.
+  PouchDB ->
+  Foreign ->
+  Foreign ->
+  (Error -> Eff e Unit) ->
+  (Foreign -> Eff e Unit) ->
+  Eff e Unit
 
 -- https://pouchdb.com/api.html#view_cleanup
 foreign import viewCleanup :: forall e.

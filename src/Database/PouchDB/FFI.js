@@ -120,6 +120,15 @@ exports.removeAttachment = function (db) {
                             db.removeAttachment(docId, attachmentId, rev, callback(e, r));
                         }}}}}}}
 
+exports.query = function (db) {
+    return function (fun) {
+        return function (options) {
+            return function (e) {
+                return function (r) {
+                    return function () {
+                        db.query(fun, options, callback(e, r));
+                    }}}}}}
+
 exports.viewCleanup = function (db) {
     return function (e) {
         return function (r) {
