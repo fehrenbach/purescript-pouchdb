@@ -63,7 +63,13 @@ foreign import allDocs :: forall e.
   Eff e Unit
 
 -- https://pouchdb.com/api.html#changes
--- TODO
+-- This returns an event emitter.
+-- I'm not quite sure what to do with that.
+-- Maybe we should use some library, like this https://github.com/joneshf/purescript-node-events
+foreign import changes :: forall e.
+  PouchDB ->
+  Foreign ->
+  Eff e Foreign
 
 -- https://pouchdb.com/api.html#replication
 -- TODO

@@ -68,6 +68,12 @@ exports.allDocs = function (db) {
                     db.allDocs(options, callback(e, r));
                 }}}}}
 
+exports.changes = function (db) {
+    return function (options) {
+        return function () {
+            return db.changes(options);
+        }}}
+
 exports.putAttachment = function (db) {
     return function (docId) {
         return function (attachmentId) {
