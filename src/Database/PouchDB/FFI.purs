@@ -99,10 +99,25 @@ foreign import putAttachment :: forall e.
   Eff e Unit
 
 -- https://pouchdb.com/api.html#get_attachment
--- TODO
+-- Attachments are Blobs in browsers and Buffers in node, not sure how to deal with that.
+foreign import getAttachment :: forall e.
+  PouchDB ->
+  String ->
+  String ->
+  Foreign ->
+  (Error -> Eff e Unit) ->
+  (Foreign -> Eff e Unit) ->
+  Eff e Unit
 
 -- https://pouchdb.com/api.html#delete_attachment
--- TODO
+foreign import removeAttachment :: forall e.
+  PouchDB ->
+  String ->
+  String ->
+  String ->
+  (Error -> Eff e Unit) ->
+  (Foreign -> Eff e Unit) ->
+  Eff e Unit
 
 -- https://pouchdb.com/api.html#query_database
 -- TODO

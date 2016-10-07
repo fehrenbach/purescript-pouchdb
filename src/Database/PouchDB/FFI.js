@@ -100,7 +100,6 @@ exports.putAttachment = function (db) {
                                     db.putAttachment(docId, attachmentId, rev, attachment, type, callback(e, r));
                                 }}}}}}}}}
 
-/*
 exports.getAttachment = function (db) {
     return function (docId) {
         return function (attachmentId) {
@@ -110,7 +109,16 @@ exports.getAttachment = function (db) {
                         return function () {
                             db.getAttachment(docId, attachmentId, options, callback(e, r));
                         }}}}}}}
-*/
+
+exports.removeAttachment = function (db) {
+    return function (docId) {
+        return function (attachmentId) {
+            return function (rev) {
+                return function (e) {
+                    return function (r) {
+                        return function () {
+                            db.removeAttachment(docId, attachmentId, rev, callback(e, r));
+                        }}}}}}}
 
 exports.viewCleanup = function (db) {
     return function (e) {
