@@ -1,4 +1,10 @@
 # purescript-pouchdb-ffi
+<a href="https://pursuit.purescript.org/packages/purescript-pouchdb-ffi">
+  <img src="https://pursuit.purescript.org/packages/purescript-pouchdb-ffi/badge"
+       alt="purescript-pouchdb-ffi on Pursuit">
+  </img>
+</a>
+
 A low-level PureScript interface to PouchDB.
 
 ## Goals
