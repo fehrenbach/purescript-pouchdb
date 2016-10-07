@@ -167,4 +167,7 @@ foreign import bulkGet :: forall e.
   Eff e Unit
 
 -- https://pouchdb.com/api.html#close_database
--- TODO
+foreign import close :: forall e.
+  PouchDB ->
+  (Unit -> Eff e Unit) ->
+  Eff e Unit

@@ -166,3 +166,11 @@ exports.bulkGet = function (db) {
                 return function () {
                     db.bulkGet(options, callback(e, r));
                 }}}}}
+
+exports.close = function (db) {
+    return function (callback) {
+        return function () {
+            db.close(function () {
+                callback();
+            });
+        }}}
