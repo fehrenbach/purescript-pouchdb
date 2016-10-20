@@ -8,8 +8,8 @@
     ],
     "dependencies": {
         "purescript-eff": "^2.0.0",
-        "purescript-exceptions": "^1.0.0",
-        "purescript-foreign": "^1.1.0"
+        "purescript-exceptions": "^2.0.0",
+        "purescript-foreign": "^3.0.0"
     },
     "devDependencies": {
         "purescript-psci-support": "^2.0.0"
