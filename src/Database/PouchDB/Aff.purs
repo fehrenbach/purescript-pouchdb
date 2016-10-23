@@ -24,3 +24,6 @@ info db = makeAff (\e s -> FFI.info db e (s <<< foreignToInfo))
 
 pouchDB :: String -> PouchDB
 pouchDB name = FFI.pouchDB name empty
+
+destroy :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) {ok :: Boolean}
+destroy db = makeAff (\e s -> FFI.destroy db empty e (s <<< unsafeFromForeign))

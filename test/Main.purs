@@ -1,33 +1,23 @@
 module Test.Main where
 
-import Database.PouchDB.Aff (info, pouchDB)
-
-import Prelude (bind)
+import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE)
+import Database.PouchDB.Aff (destroy, info, pouchDB, POUCHDB)
+import Prelude (bind, Unit)
 import Test.Unit (suite, test)
-import Test.Unit.Main (runTest)
 import Test.Unit.Assert as Assert
+import Test.Unit.Console (TESTOUTPUT)
+import Test.Unit.Main (runTest)
 
+main :: forall e. Eff (pouchdb :: POUCHDB, console :: CONSOLE, testOutput :: TESTOUTPUT, avar :: AVAR | e) Unit
 main = runTest do
-  suite "pouchdb" do
-    let db = pouchDB "localdatabase"
-    test "info" do
+  let db = pouchDB "localdatabase"
+  suite "info" do
+    test "local database name" do
       i <- info db
       Assert.equal i.db_name "localdatabase"
-
--- launchAff $ do
---   let db = pouchDB "thedatabase"
---   i <- info db
---   let foo = {_id: "test5", abc: "cde"}
---   let i' = unsafeCoerce i
---   log (unsafeCoerce (toForeign foo))
---   log i'
---   bar <- put db (toForeign foo)
---   log (unsafeCoerce bar)
---   bar' <- get db (Id "test5")
---   log (unsafeCoerce bar')
---   test5 <- get db (Id "test5")
---   log (unsafeCoerce test5)
---   deleted <- remove db test5
---   log (unsafeCoerce deleted)
---   i' <- info db
---   log (unsafeCoerce i')
+  suite "destroy" do
+    test "returns ok:true" do
+      r <- destroy (pouchDB "create-and-destroy")
+      Assert.assert "not okay" r.ok
