@@ -39,8 +39,9 @@ exports.get = function (db) {
         return function (options) {
             return function (e) {
                 return function (r) {
-                    db.get(docId, options, callback(e, r));
-                }}}}}
+                    return function () {
+                        db.get(docId, options, callback(e, r));
+                    }}}}}}
 
 exports.remove = function (db) {
     return function (doc) {
