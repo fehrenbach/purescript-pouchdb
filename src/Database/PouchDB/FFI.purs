@@ -7,10 +7,10 @@ import Data.Foreign (Foreign)
 
 foreign import data PouchDB :: *
 
--- https://pouchdb.com/api.html#create_database
+--| https://pouchdb.com/api.html#create_database
 foreign import pouchDB :: String -> Foreign -> PouchDB
 
--- https://pouchdb.com/api.html#delete_database
+--| https://pouchdb.com/api.html#delete_database
 foreign import destroy :: forall e.
   PouchDB ->
   Foreign ->
@@ -18,7 +18,7 @@ foreign import destroy :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#create_document
+--| https://pouchdb.com/api.html#create_document
 foreign import put :: forall e.
   PouchDB ->
   Foreign ->
@@ -27,7 +27,7 @@ foreign import put :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#fetch_document
+--| https://pouchdb.com/api.html#fetch_document
 foreign import get :: forall e.
   PouchDB ->
   String ->
@@ -36,7 +36,7 @@ foreign import get :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#delete_document
+--| https://pouchdb.com/api.html#delete_document
 foreign import remove :: forall e.
   PouchDB ->
   Foreign -> -- doc
@@ -45,7 +45,7 @@ foreign import remove :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#batch_create
+--| https://pouchdb.com/api.html#batch_create
 foreign import bulkDocs :: forall e.
   PouchDB ->
   Array Foreign ->
@@ -54,7 +54,7 @@ foreign import bulkDocs :: forall e.
   (Array Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#batch_fetch
+--| https://pouchdb.com/api.html#batch_fetch
 foreign import allDocs :: forall e.
   PouchDB ->
   Foreign ->
@@ -62,8 +62,8 @@ foreign import allDocs :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#changes
--- This returns an event emitter.
+--| https://pouchdb.com/api.html#changes
+-- TODO This returns an event emitter.
 -- I'm not quite sure what to do with that.
 -- Maybe we should use some library, like this https://github.com/joneshf/purescript-node-events
 foreign import changes :: forall e.
@@ -71,22 +71,22 @@ foreign import changes :: forall e.
   Foreign ->
   Eff e Foreign
 
--- https://pouchdb.com/api.html#replication
--- This returns an event emitter, like changes.
+--| https://pouchdb.com/api.html#replication
+-- TODO This returns an event emitter, like changes.
 foreign import replicate :: forall e.
   PouchDB ->
   PouchDB ->
   Foreign ->
   Eff e Foreign
 
--- https://pouchdb.com/api.html#sync
+--| https://pouchdb.com/api.html#sync
 foreign import sync :: forall e.
   PouchDB ->
   PouchDB ->
   Foreign ->
   Eff e Foreign
 
--- https://pouchdb.com/api.html#save_attachment
+--| https://pouchdb.com/api.html#save_attachment
 foreign import putAttachment :: forall e.
   PouchDB ->
   String ->
@@ -98,8 +98,8 @@ foreign import putAttachment :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#get_attachment
--- Attachments are Blobs in browsers and Buffers in node, not sure how to deal with that.
+--| https://pouchdb.com/api.html#get_attachment
+-- TODO Attachments are Blobs in browsers and Buffers in node, not sure how to deal with that.
 foreign import getAttachment :: forall e.
   PouchDB ->
   String ->
@@ -109,7 +109,7 @@ foreign import getAttachment :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#delete_attachment
+--| https://pouchdb.com/api.html#delete_attachment
 foreign import removeAttachment :: forall e.
   PouchDB ->
   String ->
@@ -119,7 +119,7 @@ foreign import removeAttachment :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#query_database
+--| https://pouchdb.com/api.html#query_database
 foreign import query :: forall e.
   PouchDB ->
   Foreign ->
@@ -128,21 +128,21 @@ foreign import query :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#view_cleanup
+--| https://pouchdb.com/api.html#view_cleanup
 foreign import viewCleanup :: forall e.
   PouchDB ->
   (Error -> Eff e Unit) ->
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#database_information
+--| https://pouchdb.com/api.html#database_information
 foreign import info :: forall e.
   PouchDB ->
   (Error -> Eff e Unit) ->
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#compaction
+--| https://pouchdb.com/api.html#compaction
 foreign import compact :: forall e.
   PouchDB ->
   Foreign ->
@@ -150,7 +150,7 @@ foreign import compact :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#revisions_diff
+--| https://pouchdb.com/api.html#revisions_diff
 foreign import revsDiff :: forall e.
   PouchDB ->
   Foreign ->
@@ -158,7 +158,7 @@ foreign import revsDiff :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#bulk_get
+--| https://pouchdb.com/api.html#bulk_get
 foreign import bulkGet :: forall e.
   PouchDB ->
   Foreign ->
@@ -166,7 +166,7 @@ foreign import bulkGet :: forall e.
   (Foreign -> Eff e Unit) ->
   Eff e Unit
 
--- https://pouchdb.com/api.html#close_database
+--| https://pouchdb.com/api.html#close_database
 foreign import close :: forall e.
   PouchDB ->
   (Unit -> Eff e Unit) ->
