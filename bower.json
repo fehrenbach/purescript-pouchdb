@@ -9,7 +9,8 @@
     "dependencies": {
         "purescript-eff": "^2.0.0",
         "purescript-exceptions": "^2.0.0",
-        "purescript-foreign": "^3.0.0"
+        "purescript-foreign": "^3.0.0",
+        "purescript-argonaut-core": "2.0.1"
     },
     "devDependencies": {
         "purescript-psci-support": "^2.0.0"

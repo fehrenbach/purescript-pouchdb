@@ -34,6 +34,15 @@ exports.put = function (db) {
                         db.put(doc, options, callback(e, r));
                     }}}}}}
 
+exports.post = function (db) {
+    return function (doc) {
+        return function (options) {
+            return function (e) {
+                return function (r) {
+                    return function () {
+                        db.post(doc, options, callback(e, r));
+                    }}}}}}
+
 exports.get = function (db) {
     return function (docId) {
         return function (options) {
