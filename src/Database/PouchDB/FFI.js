@@ -13,9 +13,9 @@ function callback (e, r) {
 
 exports.pouchDB = function (name) {
     return function (options) {
-        return new _pouchdb(name, options);
-    }
-}
+        return function () {
+            return new _pouchdb(name, options);
+        }}}
 
 exports.destroy = function (db) {
     return function (options) {
