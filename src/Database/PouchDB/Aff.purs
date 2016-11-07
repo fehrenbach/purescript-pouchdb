@@ -1,20 +1,19 @@
 module Database.PouchDB.Aff where
 
-import Prelude
-import Data.Newtype (class Newtype)
-import Database.PouchDB.FFI (PouchDB)
-import Database.PouchDB.FFI as FFI
 import Control.Monad.Aff (Aff, makeAff)
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Exception (error)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, toObject, (.?))
+import Data.Either (Either (..))
 import Data.Foreign (Foreign, unsafeFromForeign, writeObject, toForeign)
 import Data.Foreign.Class (class IsForeign, class AsForeign, read, readProp, write)
-import Control.Monad.Except (runExcept)
-import Data.Either (Either (..))
+import Data.Newtype (class Newtype)
+import Database.PouchDB.FFI (PouchDB, POUCHDB)
+import Database.PouchDB.FFI as FFI
+import Prelude
 import Unsafe.Coerce (unsafeCoerce)
-import Control.Monad.Eff.Console (log)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
-import Control.Monad.Eff.Exception (error)
-
-foreign import data POUCHDB :: !
 
 -- TODO remove (or move into its own library or something)
 dbg :: forall a. String -> a -> a
@@ -26,66 +25,68 @@ dbg s a = unsafePerformEff $ do
 data Document d =
   Document Id Rev d
 
-instance isForeignDocument :: IsForeign d => IsForeign (Document d) where
-  read value = do
-    id <- readProp "_id" value
-    rev <- readProp "_rev" value
-    d <- read value
-    pure $ Document id rev d
+instance decodeJsonDocument :: DecodeJson d => DecodeJson (Document d) where
+  decodeJson json = do
+    -- FIXME this is wrong!
+    doc <- unsafeCoerce json
+    id <- doc .? "_id"
+    rev <- doc .? "_rev"
+    d <- decodeJson json
+    pure $ Document (Id id) (Rev rev) d
 
-instance asForeignDocument :: AsForeign d => AsForeign (Document d) where
-  write (Document i r d) =
+instance encodeJsonDocument :: EncodeJson d => EncodeJson (Document d) where
+  encodeJson (Document (Id i) (Rev r) d) =
     -- This is a bit of a hack, because we need to serialize the
     -- payload to an object, then on that object set _id and _rev.
-    toForeign $ (unsafeCoerce (write d)) {_id = write i, _rev = write r}
+    unsafeCoerce $ (unsafeCoerce (encodeJson d)) {_id = i, _rev = r}
 
 
 newtype Id = Id String
 
 derive instance newtypeId :: Newtype Id _
-derive newtype instance asForeignId :: AsForeign Id
-derive newtype instance isForeignId :: IsForeign Id
-
 
 newtype Rev = Rev String
 
 derive instance newtypeRev :: Newtype Rev _
-derive newtype instance asForeignRev :: AsForeign Rev
-derive newtype instance isForeignRev :: IsForeign Rev
-
 
 empty :: Foreign
 empty = writeObject []
 
 info :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) {db_name :: String, doc_count :: Int, update_seq :: Int}
-info db = makeAff (\e s -> FFI.info db e (s <<< unsafeFromForeign))
+info db = makeAff (\e s -> FFI.info db e (s <<< unsafeFromInfo))
+  where unsafeFromInfo = unsafeCoerce -- PouchDB says these fields are always there, let's trust them.
 
-pouchDB :: String -> PouchDB
-pouchDB name = FFI.pouchDB name empty
+pouchDB :: forall e. String -> Aff (pouchdb :: POUCHDB | e) PouchDB
+pouchDB name = liftEff $ FFI.pouchDB name empty
 
 --| Deletes the database.
 --|
 --| You should not try to use the handle again.
 --| If you need a new database with the same name, call `pouchDB` again.
-destroy :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) {ok :: Boolean}
-destroy db = makeAff (\e s -> FFI.destroy db empty e (s <<< unsafeFromForeign))
+destroy :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) Unit
+destroy db = makeAff (\kE kS -> FFI.destroy db empty kE (\_ -> kS unit))
 
 -- TODO change return type to Document
-create :: forall d e. AsForeign d => PouchDB -> Id -> d -> Aff (pouchdb :: POUCHDB | e) Foreign
+create :: forall d e. EncodeJson d => PouchDB -> Id -> d -> Aff (pouchdb :: POUCHDB | e) { ok :: Boolean, id :: String, rev :: String }
+
 create db (Id id) doc = makeAff (\kE kS ->
   FFI.put db docWithId empty kE kS)
-    where docWithId = toForeign $ (unsafeCoerce (write doc)) {_id = id}
+    where docWithId = unsafeCoerce $ (unsafeCoerce (encodeJson doc)) {_id = id}
 
 -- TODO change return type to Aff .. (Document d) with updated id rev
-update :: forall d e. AsForeign d => PouchDB -> (Document d) -> Aff (pouchdb :: POUCHDB | e) {ok :: Boolean, id :: Id, rev :: Rev}
+update :: forall d e. EncodeJson d => PouchDB -> (Document d) -> Aff (pouchdb :: POUCHDB | e) {ok :: Boolean, id :: Id, rev :: Rev}
 update db doc = makeAff (\kE kS ->
-  FFI.put db (write doc) empty kE (kS <<< unsafeFromForeign))  
+    -- TODO this coercion is not ideal, but there's no EncodeJsonObject class, but we know we encode to an object.
+    FFI.put db (unsafeCoerce (encodeJson doc)) empty kE (kS <<< newtypeResult))
+  where
+    newtypeResult :: {ok :: Boolean, id :: String, rev :: String} -> {ok :: Boolean, id :: Id, rev :: Rev}
+    newtypeResult = unsafeCoerce
 
-get :: forall d e. IsForeign d => PouchDB -> Id -> Aff (pouchdb :: POUCHDB | e) (Document d)
+get :: forall d e. DecodeJson d => PouchDB -> Id -> Aff (pouchdb :: POUCHDB | e) (Document d)
 get db (Id id) = makeAff (\kE kS ->
   FFI.get db id empty
           (\e -> kE e)
-          (\r -> case runExcept (read r) of
+          (\r -> case decodeJson (fromObject r) of
              -- TODO figure out whether we can properly attach data to an error
              Left parseError -> kE (error $ "parse error: " <> show parseError)
              Right d -> kS d))

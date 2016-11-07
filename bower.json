@@ -7,10 +7,11 @@
     "output"
   ],
   "dependencies": {
-      "purescript-console": "^2.0.0",
       "purescript-aff": "^2.0.1",
+      "purescript-argonaut": "^2.0.0",
+      "purescript-console": "^2.0.0",
       "purescript-foreign": "^3.0.0",
-      "purescript-pouchdb-ffi": "^0.0.3"
+      "purescript-pouchdb-ffi": "^0.0.6"
   },
   "devDependencies": {
       "purescript-psci-support": "^2.0.0",

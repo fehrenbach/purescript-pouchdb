@@ -1,57 +1,63 @@
 module Test.Main where
 
 import Control.Monad.Aff.AVar (AVAR)
+import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Aff.Console (log)
-import Database.PouchDB.Aff (POUCHDB, Document (..), destroy, get, info, pouchDB, create)
+import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, toObject, jsonEmptyObject, (.?), (:=), (~>))
+import Data.Either (Either(..))
+import Data.Foreign (ForeignError(ForeignError), fail, writeObject)
+import Data.Foreign.Class (class AsForeign, class IsForeign, readProp, (.=))
+import Database.PouchDB.Aff (Document (..), destroy, get, info, pouchDB, create)
+import Database.PouchDB.FFI (POUCHDB)
 import Prelude
 import Test.Unit (suite, test, success)
 import Test.Unit.Assert as Assert
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 import Unsafe.Coerce (unsafeCoerce)
-import Data.Foreign (ForeignError(ForeignError), fail, writeObject)
-import Data.Foreign.Class (class AsForeign, class IsForeign, readProp, (.=))
 
 data Movie = Movie { title :: String,
                      year :: Int,
                      actors :: Array String }
 
-instance asForeignMovie :: AsForeign Movie where
-  -- TODO if this works, clean it up a bit
-  write (Movie {title, year, actors}) =
-    writeObject [ "type" .= "movie"
-                , "title" .= title
-                , "year" .= year
-                , "actors" .= actors ]
+instance encodeJsonMovie :: EncodeJson Movie where
+  encodeJson (Movie {title, year, actors}) =
+    "type" := "movie"
+    ~> "title" := title
+    ~> "year" := year
+    ~> "actors" := actors
+    ~> jsonEmptyObject
 
-instance isForeignMovie :: IsForeign Movie where
-  read value = do
-    typ :: String <- readProp "type" value
-    title <- readProp "title" value
-    year <- readProp "year" value
-    actors <- readProp "actors" value
+instance decodeJsonMovie :: DecodeJson Movie where
+  decodeJson json = do
+    obj <- decodeJson json
+    -- typ <- obj .? "type"
+    title <- obj .? "title"
+    year <- obj .? "year"
+    actors <- obj .? "actors"
     -- TODO should probably do that first
-    if (typ /= "movie")
-      then fail (ForeignError "Try to parse doc with type != 'movie' as Movie")
-      else pure $ Movie {title, year, actors}
+--    if (typ /= "movie")
+--      then Left (ForeignError "Try to parse doc with type != 'movie' as Movie")
+    pure $ Movie {title, year, actors}
 
 main :: forall e. Eff (pouchdb :: POUCHDB, console :: CONSOLE, testOutput :: TESTOUTPUT, avar :: AVAR | e) Unit
 main = runTest do
-  let db = pouchDB "localdatabase"
   suite "info" do
     test "local database name" do
+      db <- pouchDB "localdatabase"
       i <- info db
       Assert.equal i.db_name "localdatabase"
   suite "simple read write" do
     test "write doc response" do
-      r <- create db (unsafeCoerce "juno") (Movie { title: "Juno", year: 2007, actors: ["Ellen Page", "Michael Cera"]})
+      db <- pouchDB "localdatabase"
+      r <- create db (unsafeCoerce "juno") (Movie {title: "Juno", year: 2007, actors: ["Ellen Page", "Michael Cera"]})
       log (unsafeCoerce r)
       -- Assert.equal true r.ok
       -- Assert.equal (unsafeCoerce r.id) "mydoc"
       -- Assert.assertFalse "rev empty" ((unsafeCoerce r.rev) == "")
     test "read written doc" do
+      db <- pouchDB "localdatabase"
       doc@(Document id rev (m :: Movie)) <- get db (unsafeCoerce "juno")
       log (unsafeCoerce doc)
       log (unsafeCoerce m)
@@ -64,9 +70,8 @@ main = runTest do
   --       Left e -> Assert.equal ((unsafeCoerce e).name) "conflict"
   --       Right r -> failure "attempting to write a document twice should fail"
   suite "destroy" do
-    test "returns ok:true" do
-      r <- destroy (pouchDB "create-and-destroy")
-      Assert.assert "not okay" r.ok
     test "clean up localdatabase" do
-      _ <- destroy db
+      db <- pouchDB "localdatabase"
+      destroy db
+      -- TODO check that it's actually gone (recreated with 0 docs or something)
       success
