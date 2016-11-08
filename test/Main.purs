@@ -1,21 +1,18 @@
 module Test.Main where
 
 import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, toObject, jsonEmptyObject, (.?), (:=), (~>))
+import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, decodeJson, jsonEmptyObject, (.?), (:=), (~>))
 import Data.Either (Either(..))
-import Data.Foreign (ForeignError(ForeignError), fail, writeObject)
-import Data.Foreign.Class (class AsForeign, class IsForeign, readProp, (.=))
+import Data.Newtype (wrap)
 import Database.PouchDB.Aff (Document (..), destroy, get, info, pouchDB, create)
 import Database.PouchDB.FFI (POUCHDB)
 import Prelude
-import Test.Unit (suite, test, success)
+import Test.Unit (suite, test)
 import Test.Unit.Assert as Assert
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
-import Unsafe.Coerce (unsafeCoerce)
 
 data Movie = Movie { title :: String,
                      year :: Int,
@@ -29,16 +26,27 @@ instance encodeJsonMovie :: EncodeJson Movie where
     ~> "actors" := actors
     ~> jsonEmptyObject
 
+instance eqMovie :: Eq Movie where
+  eq (Movie {title: tl, year: yl, actors: al}) (Movie {title: tr, year: yr, actors: ar}) =
+    tl == tr && yl == yr && al == ar
+
+instance showMovie :: Show Movie where
+  show (Movie {title}) = "Movie " <> title
+
+assertType :: String -> JObject -> Either String Unit
+assertType expected json = do
+  typ <- json .? "type"
+  if typ == expected
+    then Right unit
+    else Left ("expected type " <> expected <> " but got " <> typ)
+
 instance decodeJsonMovie :: DecodeJson Movie where
   decodeJson json = do
     obj <- decodeJson json
-    -- typ <- obj .? "type"
+    assertType "movie" obj
     title <- obj .? "title"
     year <- obj .? "year"
     actors <- obj .? "actors"
-    -- TODO should probably do that first
---    if (typ /= "movie")
---      then Left (ForeignError "Try to parse doc with type != 'movie' as Movie")
     pure $ Movie {title, year, actors}
 
 main :: forall e. Eff (pouchdb :: POUCHDB, console :: CONSOLE, testOutput :: TESTOUTPUT, avar :: AVAR | e) Unit
@@ -48,19 +56,19 @@ main = runTest do
       db <- pouchDB "localdatabase"
       i <- info db
       Assert.equal i.db_name "localdatabase"
-  suite "simple read write" do
+  suite "simple read&write" do
+    let juno = Movie {title: "Juno", year: 2007, actors: ["Ellen Page", "Michael Cera"]}
     test "write doc response" do
       db <- pouchDB "localdatabase"
-      r <- create db (unsafeCoerce "juno") (Movie {title: "Juno", year: 2007, actors: ["Ellen Page", "Michael Cera"]})
-      log (unsafeCoerce r)
-      -- Assert.equal true r.ok
-      -- Assert.equal (unsafeCoerce r.id) "mydoc"
-      -- Assert.assertFalse "rev empty" ((unsafeCoerce r.rev) == "")
+      Document id _ m <- create db (wrap "juno") juno
+      Assert.equal id (wrap "juno")
+      Assert.equal m juno
     test "read written doc" do
       db <- pouchDB "localdatabase"
-      doc@(Document id rev (m :: Movie)) <- get db (unsafeCoerce "juno")
-      log (unsafeCoerce doc)
-      log (unsafeCoerce m)
+      Document id rev m <- get db (wrap "juno")
+      Assert.equal id (wrap "juno")
+      Assert.assertFalse "rev empty" (rev == wrap "")
+      Assert.equal m juno
   -- suite "write conflict" do
   --   test "write doc twice conflicts" do
   --     _ <- put db (toForeign {_id:"doublewrite"})
@@ -70,8 +78,12 @@ main = runTest do
   --       Left e -> Assert.equal ((unsafeCoerce e).name) "conflict"
   --       Right r -> failure "attempting to write a document twice should fail"
   suite "destroy" do
+    test "0 documents after destroy" do
+      db <- pouchDB "localdatabase"
+      destroy db
+      reopened <- pouchDB "localdatabase"
+      {doc_count} <- info reopened
+      Assert.equal 0 doc_count
     test "clean up localdatabase" do
       db <- pouchDB "localdatabase"
       destroy db
-      -- TODO check that it's actually gone (recreated with 0 docs or something)
-      success
