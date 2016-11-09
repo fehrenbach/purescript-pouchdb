@@ -1,25 +1,17 @@
 module Database.PouchDB.Aff where
 
-import Control.Monad.Aff (Aff, makeAff)
+import Prelude
+import Database.PouchDB.FFI as FFI
+import Control.Monad.Aff (attempt, Aff, makeAff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Console (log)
 import Control.Monad.Eff.Exception (error)
-import Control.Monad.Eff.Unsafe (unsafePerformEff)
+import Control.Monad.Error.Class (throwError)
 import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
-import Data.Either (Either (..))
+import Data.Either (Either(..))
 import Data.Foreign (Foreign, writeObject)
 import Data.Newtype (class Newtype)
 import Database.PouchDB.FFI (PouchDB, POUCHDB)
-import Database.PouchDB.FFI as FFI
-import Prelude
 import Unsafe.Coerce (unsafeCoerce)
-
--- TODO remove (or move into its own library or something)
-dbg :: forall a. String -> a -> a
-dbg s a = unsafePerformEff $ do
-  log s
-  log (unsafeCoerce a)
-  pure a
 
 data Document d = Document Id Rev d
 
@@ -48,6 +40,9 @@ instance eqDocument :: Eq d => Eq (Document d) where
 instance showDocument :: Show d => Show (Document d) where
   show (Document (Id id) (Rev rev) d) =
     "Document " <> id <> " " <> rev <> " (" <> show d <> ")"
+
+instance functorDocument :: Functor Document where
+  map f (Document id rev d) = Document id rev (f d)
 
 newtype Id = Id String
 
@@ -95,15 +90,18 @@ create db (Id id) doc = makeAff (\kE kS ->
     where docWithId = unsafeCoerce $ (unsafeCoerce (encodeJson doc)) {_id = id}
           success kS {ok, id, rev} = kS (Document (Id id) (Rev rev) doc)
 
-update :: forall d e. EncodeJson d =>
+--| Write a (modified) document back to the database.
+save :: forall d e. EncodeJson d =>
           PouchDB -> Document d ->
           Aff (pouchdb :: POUCHDB | e) (Document d)
-update db doc@(Document _ _ payload) = makeAff (\kE kS ->
-    -- TODO this coercion is not ideal, but there's no EncodeJsonObject class, but we know we encode to an object.
+save db doc@(Document _ _ payload) = makeAff (\kE kS ->
+    -- TODO this coercion is not ideal, but there's no EncodeJsonObject class,
+    -- but we know (well, require rather) that we encode to an object.
     FFI.put db (unsafeCoerce (encodeJson doc)) empty kE (success kS))
   where
     success kS {ok, id, rev} = kS (Document (Id id) (Rev rev) payload)
 
+--| Fetch a document from the database.
 get :: forall d e. DecodeJson d =>
        PouchDB -> Id ->
        Aff (pouchdb :: POUCHDB | e) (Document d)
@@ -112,5 +110,20 @@ get db (Id id) = makeAff (\kE kS ->
           (\e -> kE e)
           (\r -> case decodeJson (fromObject r) of
              -- TODO figure out whether we can properly attach data to an error
-             Left parseError -> kE (error $ "parse error: " <> show parseError)
+             Left parseError -> kE (error $ "parse error: " <> parseError)
              Right d -> kS d))
+
+--| Get a document, apply a function, and save it back.
+--|
+--| In case of concurrent modification, this function will retry (as often as necessary).
+swap :: forall d d' e. (EncodeJson d', DecodeJson d) =>
+        PouchDB -> (d -> d') -> Id ->
+        Aff (pouchdb :: POUCHDB | e) (Document d')
+swap db f id = do
+  d <- get db id
+  a <- attempt $ save db (map f d)
+  case a of
+    Left e -> if isConflict e then swap db f id else throwError e
+    Right v -> pure v
+    where
+      isConflict e = (unsafeCoerce e).name == "conflict"
