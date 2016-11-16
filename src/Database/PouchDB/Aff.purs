@@ -127,3 +127,14 @@ swap db f id = do
     Right v -> pure v
     where
       isConflict e = (unsafeCoerce e).name == "conflict"
+
+--| Start a live sync (one way).
+--|
+--| This sets the `retry` option, to repeatedly try to reconnect on connection loss.
+--|
+--| TODO: Find a good way to expose the change/paused/error/... events.
+--| TODO: Allow cancelling.
+liveSync :: forall e. PouchDB -> PouchDB -> Aff (pouchdb :: POUCHDB | e) Unit
+liveSync source target = do
+  _ <- liftEff $ FFI.replicate source target (unsafeCoerce {live: true, retry: true})
+  pure unit
