@@ -91,6 +91,15 @@ exports.replicate = function (source) {
                 return _pouchdb.replicate(source, target, options);
             }}}}
 
+exports.replicateTo = function (source) {
+    return function (target) {
+        return function (options) {
+            return function (e) {
+                return function (r) {
+                    return function () {
+                        source.replicate.to(target, options, callback(e, r));
+                    }}}}}}
+
 exports.sync = function (source) {
     return function (target) {
         return function (options) {

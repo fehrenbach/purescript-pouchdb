@@ -91,6 +91,17 @@ foreign import replicate :: forall e.
   Foreign ->
   Eff (pouchdb :: POUCHDB | e) Foreign
 
+--| Single-shot replication
+--|
+--| Do not set `live : true` on the option parameter!
+foreign import replicateTo :: forall e.
+  PouchDB ->
+  PouchDB ->
+  Foreign ->
+  (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  Eff (pouchdb :: POUCHDB | e) Unit
+
 --| https://pouchdb.com/api.html#sync
 foreign import sync :: forall e.
   PouchDB ->
