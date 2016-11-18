@@ -2,11 +2,12 @@ module Database.PouchDB.Aff where
 
 import Prelude
 import Database.PouchDB.FFI as FFI
+import Control.Monad.Eff (Eff)
 import Control.Monad.Aff (attempt, Aff, makeAff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Error.Class (throwError)
-import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
+import Data.Argonaut (JObject, class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
 import Data.Either (Either(..))
 import Data.Foreign (Foreign, writeObject)
 import Data.Newtype (class Newtype)
@@ -128,13 +129,48 @@ swap db f id = do
     where
       isConflict e = (unsafeCoerce e).name == "conflict"
 
---| Start a live sync (one way).
+type ReplicationInfo ext =
+  { doc_write_failures :: Int
+  , docs_read :: Int
+  , docs_written :: Int
+  , errors :: Array Foreign
+  , last_seq :: Int
+  , ok :: Boolean
+  , start_time :: Foreign -- TODO I *think* this is a Date. Might want to use purescript-js-date/purescript-datetime.
+  | ext }
+
+data ReplicationEvent =
+    Change (ReplicationInfo (docs :: Array JObject))
+  | Complete (ReplicationInfo (status :: String))
+  | Paused Foreign
+  | Active
+  | Denied Foreign
+  | Error Foreign
+
+--| Start a replication (live, retrying, one way).
 --|
 --| This sets the `retry` option, to repeatedly try to reconnect on connection loss.
 --|
 --| TODO: Find a good way to expose the change/paused/error/... events.
 --| TODO: Allow cancelling.
-liveSync :: forall e. PouchDB -> PouchDB -> Aff (pouchdb :: POUCHDB | e) Unit
-liveSync source target = do
-  _ <- liftEff $ FFI.replicate source target (unsafeCoerce {live: true, retry: true})
+startReplication :: forall e.
+                    PouchDB ->
+                    PouchDB ->
+                    (ReplicationEvent -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+                    Aff (pouchdb :: POUCHDB | e) Unit
+startReplication source target eh = do
+  ee <- liftEff $ FFI.replicate source target (unsafeCoerce {live: true, retry: true})
+  liftEff $ _on ee "change" (\i -> eh (Change (unsafeCoerce i)))
+  liftEff $ _on ee "active" (\_ -> eh Active)
   pure unit
+
+foreign import _on :: forall e.
+  Foreign ->
+  String ->
+  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  Eff (pouchdb :: POUCHDB | e) Unit
+
+--| Single-shot replication from source to target.
+-- TODO type signature
+singleShotReplication source target = makeAff (\kE kS ->
+  FFI.replicateTo source target empty kE kS)
