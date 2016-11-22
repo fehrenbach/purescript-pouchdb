@@ -3,14 +3,13 @@ module Test.Main where
 import Prelude
 import Test.Unit.Assert as Assert
 import Control.Monad.Aff (attempt)
-import Control.Monad.Aff.AVar (modifyVar, takeVar, makeVar, AVAR)
-import Control.Monad.Aff.Console (logShow)
+import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE, log)
+import Control.Monad.Eff.Console (CONSOLE)
 import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, decodeJson, jsonEmptyObject, (.?), (:=), (~>))
 import Data.Either (Either(..))
 import Data.Newtype (wrap)
-import Database.PouchDB.Aff (ReplicationEvent(..), swap, Document(..), destroy, get, info, pouchDB, create, save, startReplication, singleShotReplication)
+import Database.PouchDB.Aff (swap, Document(..), destroy, get, info, pouchDB, create, save, singleShotReplication)
 import Database.PouchDB.FFI (POUCHDB)
 import Test.Unit (failure, suite, test)
 import Test.Unit.Console (TESTOUTPUT)
@@ -53,15 +52,6 @@ instance decodeJsonMovie :: DecodeJson Movie where
     actors <- obj .? "actors"
     pure $ Movie {title, year, actors}
 
-replicationEventHandler :: ReplicationEvent -> _
-replicationEventHandler (Change c) = do
-  log "change"
-  log (unsafeCoerce c)
-replicationEventHandler Active = do
-  log "ACTIVE!!"
-replicationEventHandler _ = do
-  log "oho!"
-
 main :: forall e. Eff (pouchdb :: POUCHDB, console :: CONSOLE, testOutput :: TESTOUTPUT, avar :: AVAR | e) Unit
 main = runTest do
   let juno = Movie {title: "Juno", year: 2007, actors: ["Ellen Page", "Michael Cera"]}
@@ -101,7 +91,7 @@ main = runTest do
         -- TODO provide a way to deal with (common) errors nicely
         Left e -> Assert.equal ((unsafeCoerce e).name) "conflict"
         Right r -> failure "attempting to write a document twice should fail"
-  suite "replication" do
+  suite "single-shot replication" do
     test "local/local" do
       source <- pouchDB "localdatabase"
       target <- pouchDB "localsync"

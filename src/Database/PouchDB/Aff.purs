@@ -164,13 +164,22 @@ startReplication source target eh = do
   liftEff $ _on ee "active" (\_ -> eh Active)
   pure unit
 
+-- Register a single-argument event handler on a node-style EventEmitter.
+-- ee.on("event", function (ev) { effectful code })
 foreign import _on :: forall e.
-  Foreign ->
-  String ->
-  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  Eff (pouchdb :: POUCHDB | e) Unit
+  Foreign -> -- EventEmitter
+  String -> -- event name
+  (Foreign -> Eff e Unit) -> -- handler taking 1 argument
+  Eff e Unit
 
+-- TODO can we return a value *and* allow cancellation?
 --| Single-shot replication from source to target.
--- TODO type signature
+--|
+--| This blocks execution and only returns when replication is complete or encounters an error.
+singleShotReplication :: forall e.
+  PouchDB ->
+  PouchDB ->
+  Aff (pouchdb :: POUCHDB | e) (ReplicationInfo (end_time :: Foreign, status :: String))
 singleShotReplication source target = makeAff (\kE kS ->
-  FFI.replicateTo source target empty kE kS)
+  -- For now (no cancellation) return the actual value (for debugging purposes)
+  FFI.replicateTo source target empty kE (\r -> kS (unsafeCoerce r)))
