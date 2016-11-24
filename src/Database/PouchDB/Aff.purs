@@ -46,18 +46,33 @@ instance showDocument :: Show d => Show (Document d) where
 instance functorDocument :: Functor Document where
   map f (Document id rev d) = Document id rev (f d)
 
+
 newtype Id = Id String
 
 derive instance newtypeId :: Newtype Id _
 derive instance eqId :: Eq Id
 
+instance decodeJsonId :: DecodeJson Id where
+  decodeJson json = do
+    s <- decodeJson json
+    pure $ Id s
+
 instance showId :: Show Id where
   show (Id id) = id
+
 
 newtype Rev = Rev String
 
 derive instance newtypeRev :: Newtype Rev _
 derive instance eqRev :: Eq Rev
+
+instance decodeJsonRev :: DecodeJson Rev where
+  decodeJson json = do
+    s <- decodeJson json
+    pure $ Rev s
+
+instance showRev :: Show Rev where
+  show (Rev r) = r
 
 empty :: Foreign
 empty = writeObject []
@@ -203,7 +218,7 @@ singleShotReplication source target = makeAff (\kE kS ->
 --| Query the database using view and reduce functions stored in a design document.
 --|
 --| `decodeJson` will be called on every row in the result.
---| A row is a record of the form `{ id :: String, key :: Json, value :: Json }`.
+--| A row is a record of the form `{ key :: Json, value :: Json }`.
 viewAllGroup :: forall d e.
   DecodeJson d =>
   PouchDB ->
@@ -212,7 +227,7 @@ viewAllGroup :: forall d e.
 viewAllGroup db view = makeAff (\kE kS ->
   FFI.query db
     (unsafeCoerce view)
-    (unsafeCoerce {group: true})
+    (unsafeCoerce {group: true, reduce: true})
     kE
     -- TODO `sequence` will give us the first error. Can we do better?
     (\r -> case sequence (map decodeJson ((unsafeCoerce r).rows)) of
