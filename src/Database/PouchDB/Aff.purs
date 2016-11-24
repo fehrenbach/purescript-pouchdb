@@ -2,15 +2,16 @@ module Database.PouchDB.Aff where
 
 import Prelude
 import Database.PouchDB.FFI as FFI
-import Control.Monad.Eff (Eff)
 import Control.Monad.Aff (attempt, Aff, makeAff)
+import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error)
 import Control.Monad.Error.Class (throwError)
-import Data.Argonaut (JObject, class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
+import Data.Argonaut (JObject, Json, class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
 import Data.Either (Either(..))
 import Data.Foreign (Foreign, writeObject)
 import Data.Newtype (class Newtype)
+import Data.Traversable (sequence)
 import Database.PouchDB.FFI (PouchDB, POUCHDB)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -183,3 +184,39 @@ singleShotReplication :: forall e.
 singleShotReplication source target = makeAff (\kE kS ->
   -- For now (no cancellation) return the actual value (for debugging purposes)
   FFI.replicateTo source target empty kE (\r -> kS (unsafeCoerce r)))
+
+
+-- NOTE: The CouchDB documentation does not apply to PouchDB. In CouchDB group=true is the same as group_level=exact, in PouchDB the latter does not work.
+-- NOTE: Don't trust the PouchDB documentation, either:
+--   - options.reduce does not default to false, if the view is in a design_document and has an associated reduce function.
+--   - Other values than false for options.reduce ('_sum', '_count', '_stats', presumably functions) don't do anything if the view is in a design_document and has an associated reduce function, or {map: .., reduce: ..} version is used.
+--   - Other values than false for options.reduce seem to not be working in general. Use {map: .., reduce: ..} notation, I guess.
+
+-- reduce -> no include_docs (.. conflicts, attachments, binary)
+-- group / group_level only meaningful with reduce
+
+-- limit, skip, descending is for (possibly reduced) output, not view output before reduction
+
+-- db.query("ddocs/yard-list", {group:true}, function (err, res) { console.log(res) })
+
+
+--| Query the database using view and reduce functions stored in a design document.
+--|
+--| `decodeJson` will be called on every row in the result.
+--| A row is a record of the form `{ id :: String, key :: Json, value :: Json }`.
+viewAllGroup :: forall d e.
+  DecodeJson d =>
+  PouchDB ->
+  String -> -- "designdocname/viewname"
+  Aff (pouchdb :: POUCHDB | e) (Array d) -- Array/List
+viewAllGroup db view = makeAff (\kE kS ->
+  FFI.query db
+    (unsafeCoerce view)
+    (unsafeCoerce {group: true})
+    kE
+    -- TODO `sequence` will give us the first error. Can we do better?
+    (\r -> case sequence (map decodeJson ((unsafeCoerce r).rows)) of
+             Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
+             Right d -> kS d))
+
+-- TODO would it make sense to offer a version without decoding built-in?
