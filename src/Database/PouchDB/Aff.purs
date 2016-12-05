@@ -219,6 +219,7 @@ singleShotReplication source target = makeAff (\kE kS ->
 --|
 --| `decodeJson` will be called on every row in the result.
 --| A row is a record of the form `{ key :: Json, value :: Json }`.
+-- TODO would it make sense to offer a version without decoding built-in?
 viewAllGroup :: forall d e.
   DecodeJson d =>
   PouchDB ->
@@ -234,4 +235,18 @@ viewAllGroup db view = makeAff (\kE kS ->
              Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
              Right d -> kS d))
 
--- TODO would it make sense to offer a version without decoding built-in?
+--| Simple range query, no reduce, include docs.
+viewRangeInclude :: forall d e.
+  DecodeJson d =>
+  PouchDB ->
+  String ->
+  { startkey :: Json, endkey :: Json } ->
+  Aff (pouchdb :: POUCHDB | e) (Array d)
+viewRangeInclude db view { startkey, endkey } = makeAff (\kE kS ->
+  FFI.query db
+    (unsafeCoerce view)
+    (unsafeCoerce { startkey, endkey, reduce: false, include_docs: true })
+    kE
+    (\r -> case sequence (map decodeJson ((unsafeCoerce r).rows)) of
+             Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
+             Right d -> kS d))
