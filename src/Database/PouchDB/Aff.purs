@@ -250,3 +250,21 @@ viewRangeInclude db view { startkey, endkey } = makeAff (\kE kS ->
     (\r -> case sequence (map decodeJson ((unsafeCoerce r).rows)) of
              Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
              Right d -> kS d))
+
+--| Simple keys query, no reduce, include docs.
+viewKeysInclude :: forall d e k.
+  (DecodeJson d, EncodeJson k) =>
+  PouchDB ->
+  String ->
+  Array k ->
+  Aff (pouchdb :: POUCHDB | e) (Array d)
+viewKeysInclude db view keys = makeAff (\kE kS ->
+  FFI.query db
+    (unsafeCoerce view)
+    (unsafeCoerce { keys : encodeJson (map encodeJson keys)
+                  , reduce : false
+                  , include_docs: true })
+    kE
+    (\r -> case sequence (map decodeJson ((unsafeCoerce r).rows)) of
+             Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
+             Right d -> kS d))
