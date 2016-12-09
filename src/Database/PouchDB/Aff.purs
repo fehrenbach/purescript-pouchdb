@@ -39,6 +39,8 @@ instance eqDocument :: Eq d => Eq (Document d) where
   eq (Document (Id id_l) (Rev rev_l) d_l) (Document (Id id_r) (Rev rev_r) d_r) =
     id_l == id_r && rev_l == rev_r && d_l == d_r
 
+derive instance ordDocument :: Ord d => Ord (Document d)
+
 instance showDocument :: Show d => Show (Document d) where
   show (Document (Id id) (Rev rev) d) =
     "Document " <> id <> " " <> rev <> " (" <> show d <> ")"
@@ -51,6 +53,7 @@ newtype Id = Id String
 
 derive instance newtypeId :: Newtype Id _
 derive instance eqId :: Eq Id
+derive instance ordId :: Ord Id
 
 instance decodeJsonId :: DecodeJson Id where
   decodeJson json = do
@@ -65,6 +68,7 @@ newtype Rev = Rev String
 
 derive instance newtypeRev :: Newtype Rev _
 derive instance eqRev :: Eq Rev
+derive instance ordRev :: Ord Rev
 
 instance decodeJsonRev :: DecodeJson Rev where
   decodeJson json = do
@@ -235,6 +239,7 @@ viewAllGroup db view = makeAff (\kE kS ->
              Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
              Right d -> kS d))
 
+-- TODO I don't use it. remove?
 --| Simple range query, no reduce, include docs.
 viewRangeInclude :: forall d e.
   DecodeJson d =>
