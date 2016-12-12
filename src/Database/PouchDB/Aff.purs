@@ -127,11 +127,25 @@ get :: forall d e. DecodeJson d =>
        PouchDB -> Id ->
        Aff (pouchdb :: POUCHDB | e) (Document d)
 get db (Id id) = makeAff (\kE kS ->
-  FFI.get db id empty
-          (\e -> kE e)
+  FFI.get db id empty kE
           (\r -> case decodeJson (fromObject r) of
              -- TODO figure out whether we can properly attach data to an error
              Left parseError -> kE (error $ "parse error: " <> parseError)
+             Right d -> kS d))
+
+--| Fetch multiple documents at once.
+--|
+--| This should be the same as making multiple calls to `get`.
+--| This uses PouchDB's `allDocs` under the hood. It should not be
+--| confused with PouchDB's actual `bulkGet` which is used mainly
+--| internally for replication.
+bulkGet :: forall d e. DecodeJson d =>
+           PouchDB -> Array Id ->
+           Aff (pouchdb :: POUCHDB | e) (Array (Document d))
+bulkGet db ids = makeAff (\kE kS ->
+  FFI.allDocs db (unsafeCoerce {keys: ids, include_docs: true}) kE
+    (\r -> case sequence (map (_.doc >>> decodeJson) ((unsafeCoerce r).rows)) of
+             Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
              Right d -> kS d))
 
 --| Get a document, apply a function, and save it back.
