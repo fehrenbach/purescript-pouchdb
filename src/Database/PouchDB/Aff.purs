@@ -35,10 +35,7 @@ instance encodeJsonDocument :: EncodeJson d => EncodeJson (Document d) where
     -- payload to an object, then on that object set _id and _rev.
     unsafeCoerce $ (unsafeCoerce (encodeJson d)) {_id = i, _rev = r}
 
-instance eqDocument :: Eq d => Eq (Document d) where
-  eq (Document (Id id_l) (Rev rev_l) d_l) (Document (Id id_r) (Rev rev_r) d_r) =
-    id_l == id_r && rev_l == rev_r && d_l == d_r
-
+derive instance eqDocument :: Eq a => Eq (Document a)
 derive instance ordDocument :: Ord d => Ord (Document d)
 
 instance showDocument :: Show d => Show (Document d) where
@@ -54,14 +51,9 @@ newtype Id = Id String
 derive instance newtypeId :: Newtype Id _
 derive instance eqId :: Eq Id
 derive instance ordId :: Ord Id
-
-instance decodeJsonId :: DecodeJson Id where
-  decodeJson json = do
-    s <- decodeJson json
-    pure $ Id s
-
-instance showId :: Show Id where
-  show (Id id) = id
+derive newtype instance showId :: Show Id
+derive newtype instance encodeJsonId :: EncodeJson Id
+derive newtype instance decodeJsonId :: DecodeJson Id
 
 
 newtype Rev = Rev String
@@ -69,14 +61,10 @@ newtype Rev = Rev String
 derive instance newtypeRev :: Newtype Rev _
 derive instance eqRev :: Eq Rev
 derive instance ordRev :: Ord Rev
+derive newtype instance showRev :: Show Rev
+derive newtype instance encodeJsonRev :: EncodeJson Rev
+derive newtype instance decodeJsonRev :: DecodeJson Rev
 
-instance decodeJsonRev :: DecodeJson Rev where
-  decodeJson json = do
-    s <- decodeJson json
-    pure $ Rev s
-
-instance showRev :: Show Rev where
-  show (Rev r) = r
 
 empty :: Foreign
 empty = writeObject []
