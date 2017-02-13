@@ -40,7 +40,7 @@ derive instance ordDocument :: Ord d => Ord (Document d)
 
 instance showDocument :: Show d => Show (Document d) where
   show (Document (Id id) (Rev rev) d) =
-    "Document " <> id <> " " <> rev <> " (" <> show d <> ")"
+    "(Document " <> id <> " " <> rev <> " " <> show d <> ")"
 
 instance functorDocument :: Functor Document where
   map f (Document id rev d) = Document id rev (f d)
@@ -94,10 +94,10 @@ destroy db = makeAff (\kE kS -> FFI.destroy db empty kE (\_ -> kS unit))
 create :: forall d e. EncodeJson d =>
           PouchDB -> Id -> d ->
           Aff (pouchdb :: POUCHDB | e) (Document d)
-create db (Id id) doc = makeAff (\kE kS ->
+create db (Id docId) doc = makeAff (\kE kS ->
   FFI.put db docWithId empty kE (success kS))
-    where docWithId = unsafeCoerce $ (unsafeCoerce (encodeJson doc)) {_id = id}
-          success kS {ok, id, rev} = kS (Document (Id id) (Rev rev) doc)
+    where docWithId = unsafeCoerce $ (unsafeCoerce (encodeJson doc)) {_id = docId}
+          success kS {id: newId, rev: newRev} = kS (Document (Id newId) (Rev newRev) doc)
 
 --| Write a (modified) document back to the database.
 save :: forall d e. EncodeJson d =>
