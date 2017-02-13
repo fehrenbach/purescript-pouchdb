@@ -9,7 +9,7 @@ import Control.Monad.Eff.Console (CONSOLE)
 import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, decodeJson, jsonEmptyObject, (.?), (:=), (~>))
 import Data.Either (Either(..))
 import Data.Newtype (wrap)
-import Database.PouchDB.Aff (swap, Document(..), destroy, get, info, pouchDB, create, save, singleShotReplication)
+import Database.PouchDB.Aff (modifyDoc, Document(..), destroy, getDoc, info, pouchDB, createDoc, saveDoc, singleShotReplication)
 import Database.PouchDB.FFI (POUCHDB)
 import Test.Unit (failure, suite, test)
 import Test.Unit.Console (TESTOUTPUT)
@@ -63,30 +63,30 @@ main = runTest do
   suite "simple read&write" do
     test "write doc response" do
       db <- pouchDB "localdatabase"
-      Document id _ m <- create db (wrap "juno") juno
+      Document id _ m <- createDoc db (wrap "juno") juno
       Assert.equal id (wrap "juno")
       Assert.equal m juno
     test "read written doc" do
       db <- pouchDB "localdatabase"
-      Document id rev m <- get db (wrap "juno")
+      Document id rev m <- getDoc db (wrap "juno")
       Assert.equal id (wrap "juno")
       Assert.assertFalse "rev empty" (rev == wrap "")
       Assert.equal m juno
     test "save doc" do
       db <- pouchDB "localdatabase"
-      d <- get db (wrap "juno")
+      d <- getDoc db (wrap "juno")
       let d' = map (\(Movie m) -> Movie (m {actors = ["Ellen Page", "Michael Cera", "Olivia Thirlby"]})) d
-      d'' <- save db d'
-      d''' <- get db (wrap "juno")
+      d'' <- saveDoc db d'
+      d''' <- getDoc db (wrap "juno")
       Assert.equal d'' d'''
-    test "swap" do
+    test "modifyDoc" do
       db <- pouchDB "localdatabase"
-      (Document _ _ j) <- swap db (\(Movie m) -> Movie (m {actors = ["Ellen Page", "Michael Cera"]})) (wrap "juno")
+      (Document _ _ j) <- modifyDoc db (\(Movie m) -> Movie (m {actors = ["Ellen Page", "Michael Cera"]})) (wrap "juno")
       Assert.equal j juno
   suite "error cases" do
     test "create doc again conflicts" do
       db <- pouchDB "localdatabase"
-      a <- attempt $ create db (wrap "juno") juno
+      a <- attempt $ createDoc db (wrap "juno") juno
       case a of
         -- TODO provide a way to deal with (common) errors nicely
         Left e -> Assert.equal ((unsafeCoerce e).name) "conflict"

@@ -91,19 +91,19 @@ destroy db = makeAff (\kE kS -> FFI.destroy db empty kE (\_ -> kS unit))
 --|
 --| This is the recommended way to generate documents, rather than relying on
 --| PouchDB to make up a random document ID for you.
-create :: forall d e. EncodeJson d =>
-          PouchDB -> Id -> d ->
-          Aff (pouchdb :: POUCHDB | e) (Document d)
-create db (Id docId) doc = makeAff (\kE kS ->
+createDoc :: forall d e. EncodeJson d =>
+             PouchDB -> Id -> d ->
+             Aff (pouchdb :: POUCHDB | e) (Document d)
+createDoc db (Id docId) doc = makeAff (\kE kS ->
   FFI.put db docWithId empty kE (success kS))
     where docWithId = unsafeCoerce $ (unsafeCoerce (encodeJson doc)) {_id = docId}
           success kS {id: newId, rev: newRev} = kS (Document (Id newId) (Rev newRev) doc)
 
 --| Write a (modified) document back to the database.
-save :: forall d e. EncodeJson d =>
-          PouchDB -> Document d ->
-          Aff (pouchdb :: POUCHDB | e) (Document d)
-save db doc@(Document _ _ payload) = makeAff (\kE kS ->
+saveDoc :: forall d e. EncodeJson d =>
+           PouchDB -> Document d ->
+           Aff (pouchdb :: POUCHDB | e) (Document d)
+saveDoc db doc@(Document _ _ payload) = makeAff (\kE kS ->
     -- TODO this coercion is not ideal, but there's no EncodeJsonObject class,
     -- but we know (well, require rather) that we encode to an object.
     FFI.put db (unsafeCoerce (encodeJson doc)) empty kE (success kS))
@@ -111,10 +111,10 @@ save db doc@(Document _ _ payload) = makeAff (\kE kS ->
     success kS {ok, id, rev} = kS (Document (Id id) (Rev rev) payload)
 
 --| Fetch a document from the database.
-get :: forall d e. DecodeJson d =>
-       PouchDB -> Id ->
-       Aff (pouchdb :: POUCHDB | e) (Document d)
-get db (Id id) = makeAff (\kE kS ->
+getDoc :: forall d e. DecodeJson d =>
+          PouchDB -> Id ->
+          Aff (pouchdb :: POUCHDB | e) (Document d)
+getDoc db (Id id) = makeAff (\kE kS ->
   FFI.get db id empty kE
           (\r -> case decodeJson (fromObject r) of
              -- TODO figure out whether we can properly attach data to an error
@@ -139,14 +139,14 @@ bulkGet db ids = makeAff (\kE kS ->
 --| Get a document, apply a function, and save it back.
 --|
 --| In case of concurrent modification, this function will retry (as often as necessary).
-swap :: forall d d' e. (EncodeJson d', DecodeJson d) =>
-        PouchDB -> (d -> d') -> Id ->
-        Aff (pouchdb :: POUCHDB | e) (Document d')
-swap db f id = do
-  d <- get db id
-  a <- attempt $ save db (map f d)
+modifyDoc :: forall d d' e. (EncodeJson d', DecodeJson d) =>
+             PouchDB -> (d -> d') -> Id ->
+             Aff (pouchdb :: POUCHDB | e) (Document d')
+modifyDoc db f id = do
+  d <- getDoc db id
+  a <- attempt $ saveDoc db (map f d)
   case a of
-    Left e -> if isConflict e then swap db f id else throwError e
+    Left e -> if isConflict e then modifyDoc db f id else throwError e
     Right v -> pure v
     where
       isConflict e = (unsafeCoerce e).name == "conflict"
