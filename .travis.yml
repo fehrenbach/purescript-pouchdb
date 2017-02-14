@@ -1,0 +1,10 @@
+language: node_js
+node_js: node
+dist: trusty
+sudo: false
+install:
+  - npm install -g bower purescript pulp
+script:
+  - npm install pouchdb
+  - bower install
+  - pulp test
