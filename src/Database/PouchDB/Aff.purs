@@ -2,15 +2,18 @@ module Database.PouchDB.Aff where
 
 import Prelude
 import Database.PouchDB.FFI as FFI
+import Control.Alt ((<|>))
 import Control.Monad.Aff (attempt, Aff, makeAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Exception (error)
+import Control.Monad.Eff.Exception (error, Error)
 import Control.Monad.Error.Class (throwError)
 import Data.Argonaut (JObject, Json, class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
+import Data.Array (zipWith)
 import Data.Either (Either(..))
 import Data.Foreign (Foreign, writeObject)
 import Data.Newtype (class Newtype)
+import Data.StrMap (StrMap)
 import Data.Traversable (sequence)
 import Database.PouchDB.FFI (PouchDB, POUCHDB)
 import Unsafe.Coerce (unsafeCoerce)
@@ -109,6 +112,37 @@ saveDoc db doc@(Document _ _ payload) = makeAff (\kE kS ->
     FFI.put db (unsafeCoerce (encodeJson doc)) empty kE (success kS))
   where
     success kS {ok, id, rev} = kS (Document (Id id) (Rev rev) payload)
+
+--| Write multiple (modified) documents back to the database.
+--| Note that this is not a transaction. Individual writes might fail (in which case this function raises an error (currently reporting only the first error)) but other changes might already have been made.
+--| As far as I can tell, PouchDB will increase the revision number even if you write the same exact document that's already there. You might want to avoid that.
+bulkSave :: forall d e. EncodeJson d =>
+            PouchDB -> Array (Document d) ->
+            Aff (pouchdb :: POUCHDB | e) (Array (Document d))
+bulkSave db docs = makeAff (\kE kS ->
+  FFI.bulkDocs db (unsafeCoerce (map encodeJson docs)) empty kE (success kE kS))
+  where
+    success :: (Error -> Eff (pouchdb :: POUCHDB | e) Unit)
+            -> (Array (Document d) -> Eff (pouchdb :: POUCHDB | e) Unit)
+            -> Array (StrMap Json)
+            -> Eff (pouchdb :: POUCHDB | e) Unit
+    success kE kS rows =
+      let docsOrErrors = zipWith decodeRow rows docs
+      -- TODO This is not great, it only returns the first error, and the errors themselves are not very useful.
+      in case sequence docsOrErrors of
+        (Left e) -> kE (error e)
+        (Right decodedDocs) -> kS decodedDocs
+    decodeRow :: StrMap Json -> Document d -> Either String (Document d)
+    decodeRow m d = (decodeSuc m d) <|> (decodeErr m)
+    decodeSuc :: StrMap Json -> Document d -> Either String (Document d)
+    decodeSuc m (Document _ _ d) = do
+      ok <- m .? "ok"
+      newId <- m .? "id"
+      newRev <- m .? "rev"
+      if ok then Right (Document newId newRev d) else Left "Not ok."
+    decodeErr :: StrMap Json -> Either String (Document d)
+    decodeErr e = Left ("PouchDB reported an error: " <> show e)
+
 
 --| Fetch a document from the database.
 getDoc :: forall d e. DecodeJson d =>
