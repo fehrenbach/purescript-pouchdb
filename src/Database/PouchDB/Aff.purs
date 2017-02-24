@@ -11,7 +11,7 @@ import Control.Monad.Error.Class (throwError)
 import Data.Argonaut (JObject, Json, class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
 import Data.Array (zipWith)
 import Data.Either (Either(..))
-import Data.Foreign (Foreign, writeObject)
+import Data.Foreign (Foreign, toForeign, writeObject)
 import Data.Newtype (class Newtype)
 import Data.StrMap (StrMap)
 import Data.Traversable (sequence)
@@ -309,3 +309,25 @@ viewKeysInclude db view keys = makeAff (\kE kS ->
     (\r -> case sequence (map decodeJson ((unsafeCoerce r).rows)) of
              Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
              Right d -> kS d))
+
+--| Fetch all docs between startkey and endkey (inclusive)
+--| Consider using `docIdStartsWith` when looking for doc ids starting with some string.
+allDocsRange :: forall d e.
+  DecodeJson d =>
+  PouchDB ->
+  { startkey :: String, endkey :: String } ->
+  Aff (pouchdb :: POUCHDB | e) (Array (Document d))
+allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
+  FFI.allDocs db (toForeign { startkey, endkey, include_docs: true }) kE
+    (\r -> case sequence (map (decodeJson <<< _.doc <<< unsafeCoerce) r.rows) of
+             Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
+             Right d -> kS d))
+
+--| Construct a {startkey, endkey} record for range queries that should
+--| match everything that starts with a given string. As recommended in
+--| in the CouchDB docs, we just append the special character \uFFF0 to
+--| the string to obtain the endkey.
+--| (This means it doesn't work if you use that in your doc ids/keys!)
+--| https://wiki.apache.org/couchdb/View_collation#String_Ranges
+docIdStartsWith :: String -> { startkey :: String, endkey :: String }
+docIdStartsWith s = { startkey: s, endkey: s <> "￰" }
