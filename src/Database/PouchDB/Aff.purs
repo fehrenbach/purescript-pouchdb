@@ -12,6 +12,7 @@ import Data.Argonaut (JObject, Json, class DecodeJson, class EncodeJson, decodeJ
 import Data.Array (zipWith)
 import Data.Either (Either(..))
 import Data.Foreign (Foreign, toForeign, writeObject)
+import Data.Generic (class Generic)
 import Data.Newtype (class Newtype)
 import Data.StrMap (StrMap)
 import Data.Traversable (sequence)
@@ -40,6 +41,7 @@ instance encodeJsonDocument :: EncodeJson d => EncodeJson (Document d) where
 
 derive instance eqDocument :: Eq a => Eq (Document a)
 derive instance ordDocument :: Ord d => Ord (Document d)
+derive instance genericDocument :: Generic d => Generic (Document d)
 
 instance showDocument :: Show d => Show (Document d) where
   show (Document (Id id) (Rev rev) d) =
@@ -54,6 +56,7 @@ newtype Id = Id String
 derive instance newtypeId :: Newtype Id _
 derive instance eqId :: Eq Id
 derive instance ordId :: Ord Id
+derive instance genericId :: Generic Id
 derive newtype instance showId :: Show Id
 derive newtype instance encodeJsonId :: EncodeJson Id
 derive newtype instance decodeJsonId :: DecodeJson Id
@@ -64,6 +67,7 @@ newtype Rev = Rev String
 derive instance newtypeRev :: Newtype Rev _
 derive instance eqRev :: Eq Rev
 derive instance ordRev :: Ord Rev
+derive instance genericRev :: Generic Rev
 derive newtype instance showRev :: Show Rev
 derive newtype instance encodeJsonRev :: EncodeJson Rev
 derive newtype instance decodeJsonRev :: DecodeJson Rev
