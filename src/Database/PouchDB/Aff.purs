@@ -296,6 +296,31 @@ viewRangeInclude db view { startkey, endkey } = makeAff (\kE kS ->
              Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
              Right d -> kS d))
 
+--| This is useful for decoding view results, like `viewKeysInclude`.
+--|
+--| For example, we can use the following code to easly decode a view that emits all actor ids from all movie documents. This assumes we already have decoding logic for `Movie`.
+--| The `doc` field will be the movie document; the `key` field will contain the actor's id; the `id` field will contain the movie's id; the `value` is whatever the view emitted, here we assume it's `null`.
+--| ```
+--| viewResult :: Array (ViewRow Movie Id Unit) <- liftAff $ viewKeysInclude localDB "someddoc/movies-with-actor" [ actorid ]
+--| ```
+newtype ViewRow d k v =
+  ViewRow { doc :: Document d
+          , id :: Id
+          , key :: k
+          , value :: v }
+
+derive instance newtypeViewRow :: Newtype (ViewRow d k v) _
+
+instance decodeViewRow :: (DecodeJson d, DecodeJson k, DecodeJson v) => DecodeJson (ViewRow d k v) where
+  decodeJson json = do
+    obj <- decodeJson json
+    doc <- obj .? "doc"
+    id <- obj .? "id"
+    key <- obj .? "key"
+    value <- obj .? "value"
+    pure $ ViewRow { doc, id, key, value }
+
+
 --| Simple keys query, no reduce, include docs.
 viewKeysInclude :: forall d e k.
   (DecodeJson d, EncodeJson k) =>
