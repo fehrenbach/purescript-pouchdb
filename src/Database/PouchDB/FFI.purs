@@ -54,7 +54,7 @@ foreign import remove :: forall e.
   JObject ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  ({ok::Boolean, id::String, rev::String} -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#batch_create

@@ -189,6 +189,17 @@ modifyDoc db f id = do
     where
       isConflict e = (unsafeCoerce e).name == "conflict"
 
+--| Delete a document from the database
+--|
+--| Unlike PouchDB's `remove`, this does not clear all fields, but merely sets `_deleted: true`.
+deleteDoc :: forall d e. EncodeJson d =>
+             PouchDB -> Document d -> Aff (pouchdb :: POUCHDB | e) (Document d)
+deleteDoc db doc@(Document _ _ docContent) = makeAff (\kE kS ->
+  FFI.put db json empty kE (success kS))
+  where
+    json = unsafeCoerce ((unsafeCoerce (encodeJson doc)) { _deleted = true })
+    success kS {ok, id, rev} = kS (Document (Id id) (Rev rev) docContent)
+
 type ReplicationInfo ext =
   { doc_write_failures :: Int
   , docs_read :: Int

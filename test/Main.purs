@@ -6,20 +6,20 @@ import Control.Monad.Aff (attempt)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
+import Control.Monad.Eff.Exception (Error)
 import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, decodeJson, jsonEmptyObject, (.?), (:=), (~>))
 import Data.Either (Either(..))
 import Data.Newtype (wrap)
-import Database.PouchDB.Aff (modifyDoc, Document(..), destroy, getDoc, info, pouchDB, createDoc, saveDoc, singleShotReplication)
+import Database.PouchDB.Aff (Document(..), createDoc, deleteDoc, destroy, getDoc, info, modifyDoc, pouchDB, saveDoc, singleShotReplication)
 import Database.PouchDB.FFI (POUCHDB)
 import Test.Unit (failure, suite, test)
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 import Unsafe.Coerce (unsafeCoerce)
 
--- TODO This should perhaps be a newtype
-data Movie = Movie { title :: String,
-                     year :: Int,
-                     actors :: Array String }
+newtype Movie = Movie { title :: String,
+                        year :: Int,
+                        actors :: Array String }
 
 instance encodeJsonMovie :: EncodeJson Movie where
   encodeJson (Movie {title, year, actors}) =
@@ -29,9 +29,7 @@ instance encodeJsonMovie :: EncodeJson Movie where
     ~> "actors" := actors
     ~> jsonEmptyObject
 
-instance eqMovie :: Eq Movie where
-  eq (Movie {title: tl, year: yl, actors: al}) (Movie {title: tr, year: yr, actors: ar}) =
-    tl == tr && yl == yr && al == ar
+derive instance eqMovie :: Eq Movie
 
 instance showMovie :: Show Movie where
   show (Movie {title}) = "Movie " <> title
@@ -91,6 +89,21 @@ main = runTest do
         -- TODO provide a way to deal with (common) errors nicely
         Left e -> Assert.equal ((unsafeCoerce e).name) "conflict"
         Right r -> failure "attempting to write a document twice should fail"
+    test "read deleted doc fails" do
+      db <- pouchDB "localdatabase"
+      junoDoc :: Document Movie <- getDoc db (wrap "juno")
+      deletedJuno :: Document Movie <- deleteDoc db junoDoc
+      rereadJuno :: Either Error (Document Movie) <- attempt $ getDoc db (wrap "juno")
+      case rereadJuno of
+        Left e -> do
+          Assert.equal "not_found" ((unsafeCoerce e).name)
+          Assert.equal "deleted" ((unsafeCoerce e).reason)
+        Right r -> failure "fetching deleted document should fail"
+    test "recreate deleted document succeeds" do
+      db <- pouchDB "localdatabase"
+      (Document id _ m) :: Document Movie <- createDoc db (wrap "juno") juno
+      Assert.equal id (wrap "juno")
+      Assert.equal m juno
   suite "single-shot replication" do
     test "local/local" do
       source <- pouchDB "localdatabase"
