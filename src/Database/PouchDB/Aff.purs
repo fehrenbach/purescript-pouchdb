@@ -8,7 +8,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (error, Error)
 import Control.Monad.Error.Class (throwError)
-import Data.Argonaut (JObject, Json, class DecodeJson, class EncodeJson, decodeJson, encodeJson, fromObject, (.?))
+import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, Json, decodeJson, encodeJson, fromObject, (.?))
 import Data.Array (zipWith)
 import Data.Either (Either(..))
 import Data.Foreign (Foreign, toForeign, writeObject)
@@ -371,3 +371,21 @@ allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
 --| https://wiki.apache.org/couchdb/View_collation#String_Ranges
 docIdStartsWith :: String -> { startkey :: String, endkey :: String }
 docIdStartsWith s = { startkey: s, endkey: s <> "￰" }
+
+viewRangeGroupLevel :: forall e k v.
+  (DecodeJson k, DecodeJson v) =>
+  PouchDB ->
+  String ->
+  { startkey :: Array Json,
+    endkey :: Array Json } ->
+  Int ->
+  Aff (pouchdb :: POUCHDB | e) (Array { key :: k, value :: v })
+viewRangeGroupLevel db view {startkey, endkey} group_level = makeAff (\kE kS ->
+  FFI.query db (toForeign view) (toForeign { startkey, endkey, group_level, reduce: true }) kE (success kE kS))
+  where
+    success kE kS res = case sequence (map parseRow (unsafeCoerce res).rows) of
+      Left parseError -> kE (error $ "parse error in at least one row: " <> parseError)
+      Right d -> kS d
+    parseRow { key, value } = do parsedKey <- decodeJson key
+                                 parsedValue <- decodeJson value
+                                 Right { key: parsedKey, value: parsedValue }
