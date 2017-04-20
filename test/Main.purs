@@ -110,7 +110,7 @@ main = runTest do
       target <- pouchDB "localsync"
       i <- info target
       Assert.equal 0 i.doc_count
-      singleShotReplication source target
+      _ <- singleShotReplication source target
       i' <- info target
       Assert.equal 1 i'.doc_count
   suite "destroy" do

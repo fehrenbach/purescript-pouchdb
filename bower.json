@@ -7,18 +7,16 @@
         "output"
     ],
     "dependencies": {
-        "purescript-aff": "^2.0.1",
-        "purescript-argonaut": "^2.0.0",
-        "purescript-argonaut-core": "2.0.1",
-        "purescript-console": "^2.0.0",
-        "purescript-eff": "^2.0.0",
-        "purescript-exceptions": "^2.0.0",
-        "purescript-foreign": "^3.0.0",
-        "purescript-foreign": "^3.0.0"
+        "purescript-aff": "^3.0.0",
+        "purescript-argonaut": "^3.0.0",
+        "purescript-console": "^3.0.0",
+        "purescript-eff": "^3.1.0",
+        "purescript-exceptions": "^3.0.0",
+        "purescript-foreign": "^4.0.0"
     },
     "devDependencies": {
-        "purescript-psci-support": "^2.0.0",
-        "purescript-test-unit": "^10.0.0"
+        "purescript-psci-support": "^3.0.0",
+        "purescript-test-unit": "^11.0.0"
     },
     "license": "Apache-2.0",
     "repository": {                                                          

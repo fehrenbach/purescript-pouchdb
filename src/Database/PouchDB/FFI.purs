@@ -1,14 +1,14 @@
 module Database.PouchDB.FFI where
 
 import Prelude (Unit)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Exception (Error)
 import Data.Foreign (Foreign)
 import Data.Argonaut.Core (JObject)
 
-foreign import data PouchDB :: *
+foreign import data PouchDB :: Type
 
-foreign import data POUCHDB :: !
+foreign import data POUCHDB :: Effect
 
 --| https://pouchdb.com/api.html#create_database
 foreign import pouchDB :: forall e. String -> Foreign -> Eff (pouchdb :: POUCHDB | e) PouchDB

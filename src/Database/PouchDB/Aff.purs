@@ -11,7 +11,7 @@ import Control.Monad.Error.Class (throwError)
 import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, Json, decodeJson, encodeJson, fromObject, (.?))
 import Data.Array (zipWith)
 import Data.Either (Either(..))
-import Data.Foreign (Foreign, toForeign, writeObject)
+import Data.Foreign (Foreign, toForeign)
 import Data.Generic (class Generic)
 import Data.Newtype (class Newtype)
 import Data.StrMap (StrMap)
@@ -74,7 +74,7 @@ derive newtype instance decodeJsonRev :: DecodeJson Rev
 
 
 empty :: Foreign
-empty = writeObject []
+empty = unsafeCoerce {}
 
 info :: forall e.
         PouchDB ->
@@ -177,7 +177,7 @@ bulkGet db ids = makeAff (\kE kS ->
 --| Get a document, apply a function, and save it back.
 --|
 --| In case of concurrent modification, this function will retry (as often as necessary).
-modifyDoc :: forall d d' e. (EncodeJson d', DecodeJson d) =>
+modifyDoc :: forall d d' e. EncodeJson d' => DecodeJson d =>
              PouchDB -> (d -> d') -> Id ->
              Aff (pouchdb :: POUCHDB | e) (Document d')
 modifyDoc db f id = do
@@ -334,7 +334,8 @@ instance decodeViewRow :: (DecodeJson d, DecodeJson k, DecodeJson v) => DecodeJs
 
 --| Simple keys query, no reduce, include docs.
 viewKeysInclude :: forall d e k.
-  (DecodeJson d, EncodeJson k) =>
+  DecodeJson d =>
+  EncodeJson k =>
   PouchDB ->
   String ->
   Array k ->
@@ -373,7 +374,8 @@ docIdStartsWith :: String -> { startkey :: String, endkey :: String }
 docIdStartsWith s = { startkey: s, endkey: s <> "￰" }
 
 viewRangeGroupLevel :: forall e k v.
-  (DecodeJson k, DecodeJson v) =>
+  DecodeJson k =>
+  DecodeJson v =>
   PouchDB ->
   String ->
   { startkey :: Array Json,
