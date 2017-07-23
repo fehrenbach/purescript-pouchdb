@@ -85,6 +85,9 @@ info db = makeAff (\e s -> FFI.info db e (s <<< unsafeFromInfo))
 pouchDB :: forall e. String -> Aff (pouchdb :: POUCHDB | e) PouchDB
 pouchDB name = liftEff $ FFI.pouchDB name empty
 
+pouchDBAuth :: forall e. String -> {username :: String, password :: String} -> Aff (pouchdb :: POUCHDB | e) PouchDB
+pouchDBAuth name auth = liftEff $ FFI.pouchDB name (unsafeCoerce { auth = auth })
+
 --| Deletes the database.
 --|
 --| You should not try to use the handle again.
