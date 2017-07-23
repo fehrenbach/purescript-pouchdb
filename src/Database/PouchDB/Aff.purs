@@ -83,10 +83,10 @@ info db = makeAff (\e s -> FFI.info db e (s <<< unsafeFromInfo))
   where unsafeFromInfo = unsafeCoerce -- PouchDB says these fields are always there, let's trust them.
 
 pouchDB :: forall e. String -> Aff (pouchdb :: POUCHDB | e) PouchDB
-pouchDB name = liftEff $ FFI.pouchDB name empty
+pouchDB name = liftEff $ FFI.pouchDB (unsafeCoerce { name })
 
-pouchDBAuth :: forall e. String -> {username :: String, password :: String} -> Aff (pouchdb :: POUCHDB | e) PouchDB
-pouchDBAuth name auth = liftEff $ FFI.pouchDB name (unsafeCoerce { auth = auth })
+pouchDB' :: forall e. { name :: String, auth :: { username :: String, password :: String } } -> Aff (pouchdb :: POUCHDB | e) PouchDB
+pouchDB' options = liftEff $ FFI.pouchDB (unsafeCoerce options)
 
 --| Deletes the database.
 --|

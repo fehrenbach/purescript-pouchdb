@@ -11,11 +11,10 @@ function callback (e, r) {
     }
 }
 
-exports.pouchDB = function (name) {
-    return function (options) {
-        return function () {
-            return new _pouchdb(name, options);
-        }}}
+exports.pouchDB = function (options) {
+    return function () {
+        return new _pouchdb(options);
+    }}
 
 exports.destroy = function (db) {
     return function (options) {
