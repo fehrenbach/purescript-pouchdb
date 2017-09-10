@@ -1,26 +1,27 @@
 {
-    "name": "purescript-pouchdb-aff",
-    "ignore": [
-        "**/.*",
-        "node_modules",
-        "bower_components",
-        "output"
-    ],
-    "dependencies": {
-        "purescript-aff": "^3.0.0",
-        "purescript-argonaut": "^3.0.0",
-        "purescript-console": "^3.0.0",
-        "purescript-eff": "^3.1.0",
-        "purescript-exceptions": "^3.0.0",
-        "purescript-foreign": "^4.0.0"
-    },
-    "devDependencies": {
-        "purescript-psci-support": "^3.0.0",
-        "purescript-test-unit": "^11.0.0"
-    },
-    "license": "Apache-2.0",
-    "repository": {                                                          
-        "type": "git",                                                         
-        "url": "git://github.com/fehrenbach/purescript-pouchdb-aff.git"            
-    }
+  "name": "purescript-pouchdb-aff",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-aff": "^3.0.0",
+    "purescript-console": "^3.0.0",
+    "purescript-eff": "^3.1.0",
+    "purescript-exceptions": "^3.0.0",
+      "purescript-foreign": "^4.0.0",
+      "purescript-typelevel-prelude": "^2.4.0",
+      "purescript-simple-json": "^0.7.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^3.0.0",
+    "purescript-test-unit": "^11.0.0"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fehrenbach/purescript-pouchdb-aff.git"
+  }
 }

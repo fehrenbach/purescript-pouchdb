@@ -4,7 +4,6 @@ import Prelude (Unit)
 import Control.Monad.Eff (kind Effect, Eff)
 import Control.Monad.Eff.Exception (Error)
 import Data.Foreign (Foreign)
-import Data.Argonaut.Core (JObject)
 
 foreign import data PouchDB :: Type
 
@@ -24,7 +23,7 @@ foreign import destroy :: forall e.
 --| https://pouchdb.com/api.html#create_document
 foreign import put :: forall e.
   PouchDB ->
-  JObject ->
+  Foreign ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   ({ok::Boolean, id::String, rev::String} -> Eff (pouchdb :: POUCHDB | e) Unit) ->
@@ -33,7 +32,7 @@ foreign import put :: forall e.
 --| https://pouchdb.com/api.html#create_document
 foreign import post :: forall e.
   PouchDB ->
-  JObject ->
+  Foreign ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   ({ok::Boolean, id::String, rev::String} -> Eff (pouchdb :: POUCHDB | e) Unit) ->
@@ -45,13 +44,13 @@ foreign import get :: forall e.
   String ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  (JObject -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#delete_document
 foreign import remove :: forall e.
   PouchDB ->
-  JObject ->
+  Foreign ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   ({ok::Boolean, id::String, rev::String} -> Eff (pouchdb :: POUCHDB | e) Unit) ->
@@ -60,10 +59,10 @@ foreign import remove :: forall e.
 --| https://pouchdb.com/api.html#batch_create
 foreign import bulkDocs :: forall e.
   PouchDB ->
-  Array JObject ->
+  Array Foreign ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  (Array JObject -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  (Array Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#batch_fetch
@@ -71,7 +70,7 @@ foreign import allDocs :: forall e.
   PouchDB ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  ({total_rows::Int, offset::Int, rows::Array JObject} -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  ({total_rows::Int, offset::Int, rows::Array Foreign} -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#changes
@@ -148,7 +147,7 @@ foreign import query :: forall e.
   Foreign ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  ({ offset :: Int, rows :: Array Foreign, total_rows :: Int } -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#view_cleanup
@@ -162,7 +161,7 @@ foreign import viewCleanup :: forall e.
 foreign import info :: forall e.
   PouchDB ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  (JObject -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#compaction
@@ -178,7 +177,7 @@ foreign import revsDiff :: forall e.
   PouchDB ->
   Foreign ->
   (Error -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  (JObject -> Eff (pouchdb :: POUCHDB | e) Unit) ->
+  (Foreign -> Eff (pouchdb :: POUCHDB | e) Unit) ->
   Eff (pouchdb :: POUCHDB | e) Unit
 
 --| https://pouchdb.com/api.html#bulk_get
