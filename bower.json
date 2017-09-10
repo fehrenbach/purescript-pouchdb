@@ -1,5 +1,5 @@
 {
-  "name": "purescript-pouchdb-aff",
+  "name": "purescript-pouchdb",
   "ignore": [
     "**/.*",
     "node_modules",
@@ -22,6 +22,6 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git://github.com/fehrenbach/purescript-pouchdb-aff.git"
+    "url": "git://github.com/fehrenbach/purescript-pouchdb.git"
   }
 }

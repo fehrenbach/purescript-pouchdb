@@ -1,1 +1,1 @@
-# purescript-pouchdb-aff
+# purescript-pouchdb
