@@ -232,10 +232,10 @@ viewKeysInclude db view keys = makeAff (\kE kS ->
 --| Fetch all docs between startkey and endkey (inclusive)
 --|
 --| Consider using `docIdStartsWith` when looking for doc ids starting with some string.
-allDocsRange :: forall dat doc e.
-  ReadForeign doc =>
+allDocsRange :: forall l dat doc k v e. -- I think k and/or v might be restricted to be the key of the document, but I'm not sure
+  ReadForeign { doc :: doc, id :: Id l, key :: k, value :: v } =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
-  PouchDB ->  { startkey :: String, endkey :: String } -> Aff (pouchdb :: POUCHDB | e) (Array doc)
+  PouchDB -> { startkey :: String, endkey :: String } -> Aff (pouchdb :: POUCHDB | e) (Array { doc :: doc, id :: Id l, key :: k, value :: v })
 allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
   FFI.allDocs db (write { startkey, endkey, include_docs: true }) kE
     (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
