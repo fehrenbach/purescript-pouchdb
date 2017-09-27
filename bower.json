@@ -13,7 +13,7 @@
     "purescript-exceptions": "^3.0.0",
       "purescript-foreign": "^4.0.0",
       "purescript-typelevel-prelude": "^2.4.0",
-      "purescript-simple-json": "^0.7.0"
+      "purescript-simple-json": "^1.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0",
