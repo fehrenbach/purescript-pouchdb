@@ -13,7 +13,7 @@ import Data.Foreign (F, Foreign, toForeign)
 import Data.Generic (class Generic)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Record (insert, set)
-import Data.Traversable (sequence)
+import Data.Traversable (sequence, traverse)
 import Database.PouchDB.FFI (POUCHDB, PouchDB)
 import Database.PouchDB.FFI as FFI
 import Simple.JSON (class ReadForeign, class WriteForeign, read, write)
@@ -134,8 +134,7 @@ bulkGet :: forall doc dat e.
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> Array (Id doc) -> Aff (pouchdb :: POUCHDB | e) (Array doc)
 bulkGet db ids = makeAff (\kE kS ->
-  FFI.allDocs db (write {keys: ids, include_docs: true}) kE (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
-
+  FFI.allDocs db (write {keys: ids, include_docs: true}) kE (\r -> either (kE <<< error <<< show) kS (runExcept (traverse (read <<< _.doc <<< unsafeCoerce) r.rows))))
 
 --| Write multiple (modified) documents back to the database.
 --|
@@ -232,13 +231,13 @@ viewKeysInclude db view keys = makeAff (\kE kS ->
 --| Fetch all docs between startkey and endkey (inclusive)
 --|
 --| Consider using `docIdStartsWith` when looking for doc ids starting with some string.
-allDocsRange :: forall l dat doc k v e. -- I think k and/or v might be restricted to be the key of the document, but I'm not sure
-  ReadForeign { doc :: doc, id :: Id l, key :: k, value :: v } =>
+allDocsRange :: forall dat doc e.
+  ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
-  PouchDB -> { startkey :: String, endkey :: String } -> Aff (pouchdb :: POUCHDB | e) (Array { doc :: doc, id :: Id l, key :: k, value :: v })
+  PouchDB -> { startkey :: String, endkey :: String } -> Aff (pouchdb :: POUCHDB | e) (Array doc)
 allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
   FFI.allDocs db (write { startkey, endkey, include_docs: true }) kE
-    (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
+    (\r -> either (kE <<< error <<< show) kS (runExcept (traverse (read <<< _.doc <<< unsafeCoerce) r.rows))))
 
 
 --| Construct a {startkey, endkey} record for range queries that should
