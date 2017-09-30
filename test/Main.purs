@@ -11,7 +11,7 @@ import Data.Either (Either(..))
 import Data.Foreign.NullOrUndefined (NullOrUndefined(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap, wrap)
-import Database.PouchDB (Id, Rev, createDoc, deleteDoc, destroy, getDoc, info, pouchDB, saveDoc, singleShotReplication)
+import Database.PouchDB (Id(..), Rev, bulkGet, createDoc, deleteDoc, destroy, getDoc, info, pouchDB, saveDoc, singleShotReplication)
 import Database.PouchDB.FFI (POUCHDB)
 import Simple.JSON (class ReadForeign, class WriteForeign)
 import Test.Unit (failure, suite, test)
@@ -32,6 +32,12 @@ newtype Movie = Movie { _id :: Id Movie, _rev :: Rev Movie, title :: String, yea
 derive instance newtypeMovie :: Newtype Movie _
 derive newtype instance writeForeignMovie :: WriteForeign Movie
 derive newtype instance readForeignMovie :: ReadForeign Movie
+
+newtype Abc = Abc { _id :: Id Abc, _rev :: Rev Abc, a :: String, b :: Boolean, c :: Array Int }
+
+derive instance newtypeAbc :: Newtype Abc _
+derive newtype instance writeForeignAbc :: WriteForeign Abc
+derive newtype instance readForeignAbc :: ReadForeign Abc
 
 -- juno :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) (Document Movie)
 -- juno db = do ellenPage <- createDoc db (Id "ellen_page") { name: "Ellen Page" }
@@ -108,3 +114,12 @@ main = runTest do
       destroy db
       db' <- pouchDB "localsync"
       destroy db'
+  suite "bulk" do
+    test "bulkGet" do
+      db <- pouchDB "bulk"
+      a :: Abc <- createDoc db (Id "a") {a: "a", b: false, c: []}
+      b :: Abc <- createDoc db (Id "b") {a: "b", b: true, c: [1]}
+      c :: Abc <- createDoc db (Id "c") {a: "c", b: false, c: [2, 2]}
+      acb :: Array Abc <- bulkGet db [Id "a", Id "c", Id "b"]
+      Assert.equal (map (\(Abc {a}) -> a) acb) ["a", "c", "b"]
+      destroy db
