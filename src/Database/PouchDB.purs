@@ -190,8 +190,12 @@ startReplication :: forall e.
                     Aff (pouchdb :: POUCHDB | e) Unit
 startReplication source target eh = do
   ee <- liftEff $ FFI.replicate source target (write {live: true, retry: true})
-  liftEff $ _on ee "change" (\i -> eh (Change (unsafeCoerce i)))
   liftEff $ _on ee "active" (\_ -> eh Active)
+  liftEff $ _on ee "change" (\i -> eh (Change (unsafeCoerce i)))
+  liftEff $ _on ee "complete" (\i -> eh (Complete (unsafeCoerce i)))
+  liftEff $ _on ee "denied" (\f -> eh (Denied f))
+  liftEff $ _on ee "error" (\e -> eh (Error e))
+  liftEff $ _on ee "paused" (\e -> eh (Paused e))
   pure unit
 
 -- Register a single-argument event handler on a node-style EventEmitter.
