@@ -172,7 +172,7 @@ type ReplicationInfo ext =
 data ReplicationEvent =
     Change (ReplicationInfo (docs :: Array Foreign))
   | Complete (ReplicationInfo (status :: String))
-  | Paused Foreign
+  | Paused Foreign -- should this be (NullOrUndefined Error)?
   | Active
   | Denied Foreign
   | Error Foreign
@@ -232,9 +232,21 @@ viewKeysInclude db view keys = makeAff (\kE kS ->
     (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
 
 
+--| Range query with limit, no reduce, no docs.
+viewRangeLimit :: forall e k l v.
+  ReadForeign k =>
+  WriteForeign k =>
+  ReadForeign v =>
+  -- Should this constrain the type variable l?
+  PouchDB -> String -> {startkey :: k, endkey :: k} -> Int -> Aff (pouchdb :: POUCHDB | e) (Array { id :: Id l, key :: k, value :: v })
+viewRangeLimit db view {startkey, endkey} limit = makeAff (\kE kS ->
+  FFI.query db (write view) (write { startkey, endkey, limit, reduce: false }) kE
+    (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
+
+
 --| Fetch all docs between startkey and endkey (inclusive)
 --|
---| Consider using `docIdStartsWith` when looking for doc ids starting with some string.
+--| Consider using `rangeFromPrefix` when looking for doc ids starting with some string.
 allDocsRange :: forall dat doc e.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
@@ -250,5 +262,5 @@ allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
 --| the string to obtain the endkey.
 --| (This means it doesn't work if you use that in your doc ids/keys!)
 --| https://wiki.apache.org/couchdb/View_collation#String_Ranges
-docIdStartsWith :: String -> { startkey :: String, endkey :: String }
-docIdStartsWith s = { startkey: s, endkey: s <> "￰" }
+rangeFromPrefix :: String -> { startkey :: String, endkey :: String }
+rangeFromPrefix s = { startkey: s, endkey: s <> "￰" }
