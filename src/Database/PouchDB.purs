@@ -219,6 +219,17 @@ singleShotReplication source target = makeAff (\kE kS ->
   FFI.replicateTo source target (toForeign {}) kE (\r -> kS (unsafeCoerce r)))
 
 
+--| Simple keys query, no reduce, no docs included.
+viewKeys :: forall e l k v.
+  ReadForeign { id :: Id l, key :: k, value :: v } =>
+  WriteForeign k =>
+  -- Should this constrain the type variable l?
+  PouchDB -> String -> Array k -> Aff (pouchdb :: POUCHDB | e) (Array { id :: Id l, key :: k, value :: v })
+viewKeys db view keys = makeAff (\kE kS ->
+  FFI.query db (write view) (write { keys, reduce: false }) kE
+    (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
+
+
 --| Simple keys query, no reduce, include docs.
 --|
 --| Throws the first parse error only (if any).
