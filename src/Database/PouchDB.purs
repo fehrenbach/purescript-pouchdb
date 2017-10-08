@@ -9,8 +9,10 @@ import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Except (runExcept)
 import Data.Array (zipWith)
 import Data.Either (Either(..), either)
-import Data.Foreign (F, Foreign, toForeign)
+import Data.Foreign (F, Foreign, readBoolean, readNullOrUndefined, readString, toForeign)
+import Data.Foreign.Index ((!))
 import Data.Generic (class Generic)
+import Data.Maybe (maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Record (insert, set)
 import Data.Traversable (sequence, traverse)
@@ -275,3 +277,25 @@ allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
 --| https://wiki.apache.org/couchdb/View_collation#String_Ranges
 rangeFromPrefix :: String -> { startkey :: String, endkey :: String }
 rangeFromPrefix s = { startkey: s, endkey: s <> "￰" }
+
+
+--| Subscribe to future changes
+changesLiveSinceNow :: forall e.
+  PouchDB -> ({ id :: String, rev :: String, deleted :: Boolean } -> Eff (pouchdb :: POUCHDB | e) Unit) -> Aff (pouchdb :: POUCHDB | e) Unit
+changesLiveSinceNow db handler = liftEff $ do
+  c <- FFI.changes db (write { live: true, since: "now" })
+  liftEff $ _on c "change" changeHandler
+  -- TODO on "error" handler?
+  -- TODO cancel?
+  pure unit
+  where
+    changeHandler :: Foreign -> Eff (pouchdb :: POUCHDB | e) Unit
+    changeHandler f = case runExcept (parse f) of
+      Left _ -> pure unit -- TODO error handler?
+      Right r -> handler r
+    parse f = do
+      id <- f ! "id" >>= readString
+      rev <- f ! "changes" ! 0 ! "rev" >>= readString
+      maybeDeleted <- f ! "deleted" >>= readNullOrUndefined
+      deleted <- maybe (pure false) readBoolean maybeDeleted
+      pure { id, rev, deleted }
