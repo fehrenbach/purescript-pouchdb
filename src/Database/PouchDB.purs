@@ -291,6 +291,19 @@ rangeFromPrefix :: String -> { startkey :: String, endkey :: String }
 rangeFromPrefix s = { startkey: s, endkey: s <> "￰" }
 
 
+--| Reduce query over a range of keys, with group_level.
+--|
+--| The types here are less than ideal, because we can have compound keys with different types, e.g. movie Id (as string) and year (as Int).
+viewRangeGroupLevel :: forall e k v. -- NOTE: We could probably solve the weak typing issues using HLists
+  WriteForeign k =>
+  ReadForeign k =>
+  ReadForeign v =>
+  PouchDB -> String -> { startkey :: Array k, endkey :: Array k } -> Int -> Aff (pouchdb :: POUCHDB | e) (Array { key :: Array k, value :: v })
+viewRangeGroupLevel db view { startkey, endkey } group_level = do
+  r <- fromEffFnAff (FFI.query db (write view) (write { startkey, endkey, group_level }))
+  either (throwError <<< error <<< show) pure (runExcept (read (toForeign r.rows)))
+
+
 --| Subscribe to future changes
 changesLiveSinceNow :: forall e.
   PouchDB -> ({ id :: String, rev :: String, deleted :: Boolean } -> Eff (pouchdb :: POUCHDB | e) Unit) -> Aff (pouchdb :: POUCHDB | e) Unit
