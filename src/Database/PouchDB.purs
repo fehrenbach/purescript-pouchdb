@@ -2,7 +2,8 @@ module Database.PouchDB where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, makeAff)
+import Control.Monad.Aff (Aff, throwError)
+import Control.Monad.Aff.Compat (fromEffFnAff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error, error)
@@ -50,9 +51,10 @@ getDoc :: forall doc dat e.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> Id doc -> Aff (pouchdb :: POUCHDB | e) doc
-getDoc db (Id id) = makeAff (\kE kS ->
-  FFI.get db id (toForeign {}) kE (\r -> either (kE <<< error <<< show) kS (runExcept (read r))))
-
+getDoc db (Id id) = do
+  r <- fromEffFnAff (FFI.get db id (toForeign {}))
+  -- eh, not really happy with this error handling...
+  either (throwError <<< error <<< show) pure (runExcept (read r))
 
 pouchDB :: forall e. String -> Aff (pouchdb :: POUCHDB | e) PouchDB
 pouchDB name = liftEff $ FFI.pouchDB (write { name } )
@@ -64,7 +66,9 @@ pouchDB' options = liftEff $ FFI.pouchDB (write options)
 
 --| Get information about a database
 info :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) { db_name :: String, doc_count :: Int, update_seq :: Int }
-info db = makeAff (\kE kS -> FFI.info db kE (\r -> either (kE <<< error <<< show) kS (runExcept (read r))))
+info db = do
+  r <- fromEffFnAff (FFI.info db)
+  either (throwError <<< error <<< show) pure (runExcept (read r))
 
 
 --| Deletes the database.
@@ -72,7 +76,7 @@ info db = makeAff (\kE kS -> FFI.info db kE (\r -> either (kE <<< error <<< show
 --| DO NOT try to use the handle again.
 --| You can create a new PouchDB object using the same database name.
 destroy :: forall e. PouchDB -> Aff (pouchdb :: POUCHDB | e) Unit
-destroy db = makeAff (\kE kS -> FFI.destroy db (toForeign {}) kE (\_ -> kS unit))
+destroy db = void (fromEffFnAff (FFI.destroy db (toForeign {})))
 
 
 --| Save the given proto-document as a new document with the given id.
@@ -89,12 +93,13 @@ createDoc :: forall doc dat e.
   RowLacks "_rev" ( _id :: Id doc | dat ) =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> Id doc -> {| dat} -> Aff (pouchdb :: POUCHDB | e) doc
-createDoc db i protoDoc = makeAff (\kE kS ->
-  FFI.put db (write doc) (toForeign {}) kE
-  (\r -> kS (wrap (insert (SProxy :: SProxy "_rev") (Rev r.rev) doc))))
+createDoc db i protoDoc = do
+  r <- fromEffFnAff (FFI.put db (write doc) (toForeign {}))
+  pure (wrap (insert (SProxy :: SProxy "_rev") (Rev r.rev) doc))
   where
     doc :: { _id :: Id doc | dat }
     doc = insert (SProxy :: SProxy "_id") i protoDoc
+
 
 --| Write a (modified) document back to the database.
 --|
@@ -103,9 +108,9 @@ saveDoc :: forall doc dat e.
   WriteForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> doc -> Aff (pouchdb :: POUCHDB | e) doc
-saveDoc db doc = makeAff (\kE kS ->
-  FFI.put db (write doc) (toForeign {}) kE
-  (\r -> kS (wrap (unwrap doc) {_rev = Rev r.rev})))
+saveDoc db doc = do
+  r <- fromEffFnAff (FFI.put db (write doc) (toForeign {}))
+  pure (wrap (unwrap doc) {_rev = Rev r.rev})
 
 
 --| Delete a document from the database
@@ -116,13 +121,14 @@ deleteDoc :: forall doc dat e.
   RowLacks "_deleted" (_id :: Id doc, _rev :: Rev doc | dat) =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> doc -> Aff (pouchdb :: POUCHDB | e) doc
-deleteDoc db doc = makeAff (\kE kS ->
-  FFI.put db (write deleted) (toForeign {}) kE
-  (\r -> kS (wrap (set (SProxy :: SProxy "_rev") (wrap r.rev) udoc))))
+deleteDoc db doc = do
+  r <- fromEffFnAff (FFI.put db (write deleted) (toForeign {}))
+  pure (wrap (set (SProxy :: SProxy "_rev") (wrap r.rev) udoc))
   where
     udoc = unwrap doc
     deleted :: { _deleted :: Boolean, _id :: Id doc, _rev :: Rev doc | dat }
     deleted = insert (SProxy :: SProxy "_deleted") true udoc
+
 
 --| Fetch multiple documents at once.
 --|
@@ -135,8 +141,10 @@ bulkGet :: forall doc dat e.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> Array (Id doc) -> Aff (pouchdb :: POUCHDB | e) (Array doc)
-bulkGet db ids = makeAff (\kE kS ->
-  FFI.allDocs db (write {keys: ids, include_docs: true}) kE (\r -> either (kE <<< error <<< show) kS (runExcept (traverse (read <<< _.doc <<< unsafeCoerce) r.rows))))
+bulkGet db ids = do
+  r <- fromEffFnAff (FFI.allDocs db (write {keys: ids, include_docs: true}))
+  either (throwError <<< error <<< show) pure (runExcept (traverse (read <<< _.doc <<< unsafeCoerce) r.rows))
+
 
 --| Write multiple (modified) documents back to the database.
 --|
@@ -149,8 +157,9 @@ bulkSave :: forall dat doc e.
   WriteForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> Array doc -> Aff (pouchdb :: POUCHDB | e) (Array doc)
-bulkSave db docs = makeAff (\kE kS ->
-  FFI.bulkDocs db (map write docs) (toForeign {}) kE (\r -> either kE kS (sequence (zipWith decodeRow docs r))))
+bulkSave db docs = do
+  r <- fromEffFnAff (FFI.bulkDocs db (map write docs) (toForeign {}))
+  either throwError pure (sequence (zipWith decodeRow docs r))
   where
     decodeRow :: doc -> Foreign -> Either Error doc
     decodeRow doc f = case runExcept (read f :: F { ok :: Boolean, id :: String, rev :: String }) of
@@ -179,6 +188,7 @@ data ReplicationEvent =
   | Denied Foreign
   | Error Foreign
 
+
 --| Start a replication (live, retrying, one way).
 --|
 --| This sets the `retry` option, to repeatedly try to reconnect on connection loss.
@@ -200,6 +210,7 @@ startReplication source target eh = do
   liftEff $ _on ee "paused" (\e -> eh (Paused e))
   pure unit
 
+
 -- Register a single-argument event handler on a node-style EventEmitter.
 -- ee.on("event", function (ev) { effectful code })
 foreign import _on :: forall e.
@@ -207,6 +218,7 @@ foreign import _on :: forall e.
   String -> -- event name
   (Foreign -> Eff e Unit) -> -- handler taking 1 argument
   Eff e Unit
+
 
 -- TODO can we return a value *and* allow cancellation?
 --| Single-shot replication from source to target.
@@ -216,9 +228,9 @@ singleShotReplication :: forall e.
   PouchDB ->
   PouchDB ->
   Aff (pouchdb :: POUCHDB | e) (ReplicationInfo (end_time :: Foreign, status :: String))
-singleShotReplication source target = makeAff (\kE kS ->
-  -- For now (no cancellation) return the actual value (for debugging purposes)
-  FFI.replicateTo source target (toForeign {}) kE (\r -> kS (unsafeCoerce r)))
+singleShotReplication source target = do
+  r <- fromEffFnAff (FFI.replicateTo source target (toForeign {}))
+  pure (unsafeCoerce r)
 
 
 --| Simple keys query, no reduce, no docs included.
@@ -227,9 +239,9 @@ viewKeys :: forall e l k v.
   WriteForeign k =>
   -- Should this constrain the type variable l?
   PouchDB -> String -> Array k -> Aff (pouchdb :: POUCHDB | e) (Array { id :: Id l, key :: k, value :: v })
-viewKeys db view keys = makeAff (\kE kS ->
-  FFI.query db (write view) (write { keys, reduce: false }) kE
-    (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
+viewKeys db view keys = do
+  r <- fromEffFnAff (FFI.query db (write view) (write { keys, reduce: false }))
+  either (throwError <<< error <<< show) pure (runExcept (read (toForeign r.rows)))
 
 
 --| Simple keys query, no reduce, include docs.
@@ -240,9 +252,9 @@ viewKeysInclude :: forall l doc dat k v e.
   WriteForeign k =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> String -> Array k -> Aff (pouchdb :: POUCHDB | e) (Array { doc :: doc, id :: Id l, key :: k, value :: v })
-viewKeysInclude db view keys = makeAff (\kE kS ->
-  FFI.query db (write view) (write { keys, reduce: false, include_docs: true }) kE
-    (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
+viewKeysInclude db view keys = do
+    r <- fromEffFnAff (FFI.query db (write view) (write { keys, reduce: false, include_docs: true }))
+    either (throwError <<< error <<< show) pure (runExcept (read (toForeign r.rows)))
 
 
 --| Range query with limit, no reduce, no docs.
@@ -252,9 +264,9 @@ viewRangeLimit :: forall e k l v.
   ReadForeign v =>
   -- Should this constrain the type variable l?
   PouchDB -> String -> {startkey :: k, endkey :: k} -> Int -> Aff (pouchdb :: POUCHDB | e) (Array { id :: Id l, key :: k, value :: v })
-viewRangeLimit db view {startkey, endkey} limit = makeAff (\kE kS ->
-  FFI.query db (write view) (write { startkey, endkey, limit, reduce: false }) kE
-    (\r -> either (kE <<< error <<< show) kS (runExcept (read (toForeign r.rows)))))
+viewRangeLimit db view {startkey, endkey} limit = do
+  r <- fromEffFnAff (FFI.query db (write view) (write { startkey, endkey, limit, reduce: false }))
+  either (throwError <<< error <<< show) pure (runExcept (read (toForeign r.rows)))
 
 
 --| Fetch all docs between startkey and endkey (inclusive)
@@ -264,9 +276,9 @@ allDocsRange :: forall dat doc e.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
   PouchDB -> { startkey :: String, endkey :: String } -> Aff (pouchdb :: POUCHDB | e) (Array doc)
-allDocsRange db {startkey, endkey} = makeAff (\kE kS ->
-  FFI.allDocs db (write { startkey, endkey, include_docs: true }) kE
-    (\r -> either (kE <<< error <<< show) kS (runExcept (traverse (read <<< _.doc <<< unsafeCoerce) r.rows))))
+allDocsRange db {startkey, endkey} = do
+  r <- fromEffFnAff (FFI.allDocs db (write { startkey, endkey, include_docs: true }))
+  either (throwError <<< error <<< show) pure (runExcept (traverse (read <<< _.doc <<< unsafeCoerce) r.rows))
 
 
 --| Construct a {startkey, endkey} record for range queries that should

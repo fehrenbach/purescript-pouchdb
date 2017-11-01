@@ -3,7 +3,7 @@ module Test.Main where
 import Prelude
 
 import Control.Monad.Aff (attempt, delay, runAff)
-import Control.Monad.Aff.AVar (AVAR, makeVar, putVar, takeVar)
+import Control.Monad.Aff.AVar (AVAR, makeEmptyVar, putVar, takeVar)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (Error)
@@ -126,19 +126,24 @@ main = runTest do
   suite "changes" do
     test "change event fired within reasonable time" do
       db <- pouchDB "changes"
+      -- TODO this looks like it's broken since updating to Aff v4. If
+      -- we comment out the changesLiveSinceNow line, we can put
+      -- Assert.equal true false at the end and pulp still reports
+      -- passing tests...
+
       -- This is a bit of a mess. The idea is as follows:
       -- 1. We put a document a
       -- 2. We subscribe to future changes with a handler that writes to an AVar
       -- 3. We put a document b and race that with a delayed put to the AVar directly (fake id, rev, deleted)
       -- 4. We read the AVar and check that we actually got the change for b, not for a, and not the timeout fake
       a :: Abc <- createDoc db (Id "a") {a: "a", b: false, c: []}
-      var <- makeVar
-      changesLiveSinceNow db (\r -> void $ runAff (const (pure unit)) pure (putVar var r))
+      var <- makeEmptyVar
+      changesLiveSinceNow db (\r -> void $ runAff (const (pure unit)) (putVar r var))
       _ <- sequential $ oneOf
              [ parallel (do b :: Abc <- createDoc db (Id "b") {a: "b", b: true, c: [1]}
                             pure unit)
-             , parallel (do delay (Milliseconds 500.0)
-                            putVar var { id: "nope", rev: "there was a timeout", deleted: false })
+             , parallel (do delay (Milliseconds 50.0)
+                            putVar { id: "nope", rev: "there was a timeout", deleted: false } var)
              ]
       res <- takeVar var
       Assert.equal res.id "b"
