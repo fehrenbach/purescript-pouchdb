@@ -257,6 +257,25 @@ viewKeysInclude db view keys = do
     either (throwError <<< error <<< show) pure (runExcept (read (toForeign r.rows)))
 
 
+--| Simple keys query, no reduce, only return docs.
+--|
+--| This is like `viewKeysInclude`, except that you only get the `doc`s.
+--|
+--| This is useful to look up a bunch of documents by a secondary key.
+--| Something like `bulkGet`, except for a different key than `_id`.
+viewKeysDoc :: forall doc dat k e.
+  ReadForeign doc =>
+  WriteForeign k =>
+  Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
+  PouchDB -> String -> Array k -> Aff (pouchdb :: POUCHDB | e) (Array doc)
+viewKeysDoc db view keys = do
+    r <- fromEffFnAff (FFI.query db (write view) (write { keys, reduce: false, include_docs: true }))
+    either (throwError <<< error <<< show) pure (runExcept (read (toForeign (docs r))))
+  where
+    docs :: { offset :: Int, rows :: Array Foreign, total_rows :: Int } -> Array Foreign
+    docs r = map _.doc (unsafeCoerce r.rows) -- TODO we could do this with a destructive map
+
+
 --| Range query with limit, no reduce, no docs.
 viewRangeLimit :: forall e k l v.
   ReadForeign k =>
