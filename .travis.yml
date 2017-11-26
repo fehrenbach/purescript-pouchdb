@@ -4,8 +4,10 @@ dist: trusty
 sudo: false
 install:
   - npm install -g bower purescript pulp
-script:
   - npm install pouchdb
+script:
+  - bower install --production
+  - pulp build
   - bower install
   - pulp test
 after_success:
