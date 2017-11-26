@@ -1,7 +1,7 @@
 language: node_js
 node_js: node
 dist: trusty
-sudo: false
+sudo: required
 install:
   - npm install -g bower purescript pulp
   - npm install pouchdb
