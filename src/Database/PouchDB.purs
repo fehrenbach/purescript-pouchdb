@@ -45,6 +45,50 @@ derive newtype instance showRev :: Show (Rev d)
 derive newtype instance readForeignRev :: ReadForeign (Rev d)
 derive newtype instance writeForeignRev :: WriteForeign (Rev d)
 
+-- I feel like this should be in some library somewhere
+class Subrow (r :: # Type) (s :: # Type)
+instance subrow :: Union r t s => Subrow r s
+
+data Adapter = Idb | Leveldb | Websql | Http
+
+instance writeForeignAdapter :: WriteForeign Adapter where
+  writeImpl Idb = write "idb"
+  writeImpl Leveldb = write "leveldb"
+  writeImpl Websql = write "websql"
+  writeImpl Http = write "http"
+
+--| Create or open a local database
+--|
+--| For example, the follwing opens (and creates if it does not exist) the local database "movies" with automatic compaction enabled:
+--| ```purescript
+--| do moviedb <- pouchDBLocal { name: "movies", auto_compaction: true }
+--|    -- do something with your database
+--| ```
+--|
+--| `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
+pouchDBLocal :: forall e options.
+  WriteForeign { name :: String | options } =>
+  Subrow options (adapter :: Adapter, auto_compaction :: Boolean, revs_limit :: Int) =>
+  { name :: String | options } -> Aff (pouchdb :: POUCHDB | e) PouchDB
+pouchDBLocal options = liftEff $ FFI.pouchDB (write options)
+
+--| Create or open a remote database
+--|
+--| For example, the follwing opens a connection to the "query-movies" database on cloudant.com without trying to create it should it not exist already (`skip_setup`):
+--| ```purescript
+--| do moviedb <- pouchDBRemote { name: "https://examples.cloudant.com/query-movies", skip_setup: true }
+--|    -- do something with your database
+--| ```
+--|
+--| `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
+pouchDBRemote :: forall e options.
+  WriteForeign { name :: String | options } =>
+  Subrow options ( ajax :: { cache :: Boolean, timeout :: Int, withCredentials :: Boolean }
+                 , auth :: { username :: String, password :: String }
+                 , skip_setup :: Boolean) =>
+  { name :: String | options } -> Aff (pouchdb :: POUCHDB | e) PouchDB
+pouchDBRemote options = liftEff $ FFI.pouchDB (write options)
+
 
 --| Fetch a document by `_id`.
 getDoc :: forall doc dat e.
@@ -55,13 +99,6 @@ getDoc db (Id id) = do
   r <- fromEffFnAff (FFI.get db id (toForeign {}))
   -- eh, not really happy with this error handling...
   either (throwError <<< error <<< show) pure (runExcept (read r))
-
-pouchDB :: forall e. String -> Aff (pouchdb :: POUCHDB | e) PouchDB
-pouchDB name = liftEff $ FFI.pouchDB (write { name } )
-
-
-pouchDB' :: forall e. { name :: String, auth :: { username :: String, password :: String } } -> Aff (pouchdb :: POUCHDB | e) PouchDB
-pouchDB' options = liftEff $ FFI.pouchDB (write options)
 
 
 --| Get information about a database

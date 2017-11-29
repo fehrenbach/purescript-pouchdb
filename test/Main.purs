@@ -14,7 +14,7 @@ import Data.Foreign.NullOrUndefined (NullOrUndefined(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Time.Duration (Milliseconds(..))
-import Database.PouchDB (Id(..), Rev, bulkGet, changesLiveSinceNow, createDoc, deleteDoc, destroy, getDoc, info, pouchDB, saveDoc, singleShotReplication)
+import Database.PouchDB (Id(..), Rev, bulkGet, changesLiveSinceNow, createDoc, deleteDoc, destroy, getDoc, info, pouchDBLocal, saveDoc, singleShotReplication)
 import Database.PouchDB.FFI (POUCHDB)
 import Simple.JSON (class ReadForeign, class WriteForeign)
 import Test.Unit (failure, suite, test)
@@ -48,24 +48,24 @@ main = runTest do
   let juno = {title: "Juno", year: 2007, actors: map wrap ["Ellen Page", "Michael Cera"], sequel: NullOrUndefined Nothing }
   suite "info" do
     test "local database name" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       i <- info db
       Assert.equal i.db_name "localdatabase"
   suite "simple read&write" do
     test "write doc response" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       Movie m <- createDoc db (wrap "juno") juno
       Assert.equal m._id (wrap "juno")
       Assert.equal m.title juno.title
       Assert.equal m.sequel juno.sequel
     test "read written doc" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       m :: Movie <- getDoc db (wrap "juno")
       Assert.equal (unwrap m)._id (wrap "juno")
       Assert.equal (unwrap m).title juno.title
       Assert.assertFalse "rev empty" ((unwrap m)._rev == wrap "")
     test "save doc" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       Movie d <- getDoc db (wrap "juno")
       let d' = d {actors = map wrap ["Ellen Page", "Michael Cera", "Olivia Thirlby"]}
       Movie d'' <- saveDoc db (Movie d')
@@ -73,14 +73,14 @@ main = runTest do
       Assert.equal d''.actors d'''.actors
   suite "error cases" do
     test "create doc again conflicts" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       a :: Either Error Movie <- attempt $ createDoc db (wrap "juno") juno
       case a of
         -- TODO provide a way to deal with (common) errors nicely
         Left e -> Assert.equal ((unsafeCoerce e).name) "conflict"
         Right r -> failure "attempting to write a document twice should fail"
     test "read deleted doc fails" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       junoDoc :: Movie <- getDoc db (wrap "juno")
       deletedJuno :: Movie <- deleteDoc db junoDoc
       rereadJuno :: Either Error Movie <- attempt $ getDoc db (wrap "juno")
@@ -90,13 +90,13 @@ main = runTest do
           Assert.equal "deleted" ((unsafeCoerce e).reason)
         Right r -> failure "fetching deleted document should fail"
     test "recreate deleted document succeeds" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       Movie m <- createDoc db (wrap "juno") juno
       Assert.equal m._id (wrap "juno")
   suite "single-shot replication" do
     test "local/local" do
-      source <- pouchDB "localdatabase"
-      target <- pouchDB "localsync"
+      source <- pouchDBLocal {name: "localdatabase"}
+      target <- pouchDBLocal {name: "localsync"}
       i <- info target
       Assert.equal 0 i.doc_count
       _ <- singleShotReplication source target
@@ -104,19 +104,19 @@ main = runTest do
       Assert.equal 1 i'.doc_count
   suite "destroy" do
     test "0 documents after destroy" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       destroy db
-      reopened <- pouchDB "localdatabase"
+      reopened <- pouchDBLocal { name: "localdatabase"}
       {doc_count} <- info reopened
       Assert.equal 0 doc_count
     test "clean up" do
-      db <- pouchDB "localdatabase"
+      db <- pouchDBLocal { name: "localdatabase"}
       destroy db
-      db' <- pouchDB "localsync"
+      db' <- pouchDBLocal { name: "localsync"}
       destroy db'
   suite "bulk" do
     test "bulkGet" do
-      db <- pouchDB "bulk"
+      db <- pouchDBLocal { name: "localdatabase"}
       a :: Abc <- createDoc db (Id "a") {a: "a", b: false, c: []}
       b :: Abc <- createDoc db (Id "b") {a: "b", b: true, c: [1]}
       c :: Abc <- createDoc db (Id "c") {a: "c", b: false, c: [2, 2]}
@@ -125,7 +125,7 @@ main = runTest do
       destroy db
   suite "changes" do
     test "change event fired within reasonable time" do
-      db <- pouchDB "changes"
+      db <- pouchDBLocal { name: "changes"}
       -- TODO this looks like it's broken since updating to Aff v4. If
       -- we comment out the changesLiveSinceNow line, we can put
       -- Assert.equal true false at the end and pulp still reports
