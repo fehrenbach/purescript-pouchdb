@@ -14,7 +14,7 @@ import Data.Foreign.NullOrUndefined (NullOrUndefined(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Time.Duration (Milliseconds(..))
-import Database.PouchDB (Id(..), Rev, bulkGet, changesLiveSinceNow, createDoc, deleteDoc, destroy, getDoc, info, pouchDBLocal, saveDoc, singleShotReplication)
+import Database.PouchDB (Checkpoint(..), Id(..), Rev, bulkGet, changesLiveSinceNow, createDoc, deleteDoc, destroy, getDoc, info, pouchDBLocal, saveDoc, singleShotReplication)
 import Database.PouchDB.FFI (POUCHDB)
 import Simple.JSON (class ReadForeign, class WriteForeign)
 import Test.Unit (failure, suite, test)
@@ -99,7 +99,7 @@ main = runTest do
       target <- pouchDBLocal {name: "localsync"}
       i <- info target
       Assert.equal 0 i.doc_count
-      _ <- singleShotReplication source target
+      _ <- singleShotReplication source target { checkpoint: Neither }
       i' <- info target
       Assert.equal 1 i'.doc_count
   suite "destroy" do

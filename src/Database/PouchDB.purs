@@ -217,6 +217,7 @@ type ReplicationInfo ext =
   , start_time :: Foreign -- TODO I *think* this is a Date. Might want to use purescript-js-date/purescript-datetime.
   | ext }
 
+-- TODO these could be more precise, I think
 data ReplicationEvent =
     Change (ReplicationInfo (docs :: Array Foreign))
   | Complete (ReplicationInfo (status :: String))
@@ -225,27 +226,41 @@ data ReplicationEvent =
   | Denied Foreign
   | Error Foreign
 
+data Checkpoint = SourceOnly | TargetOnly | Neither
 
---| Start a replication (live, retrying, one way).
+instance writeForeignCheckpoint :: WriteForeign Checkpoint where
+  writeImpl SourceOnly = write "source"
+  writeImpl TargetOnly = write "target"
+  writeImpl Neither = write false
+
+
+-- Should we pass a record of event handlers instead of this ReplicationEvent datatype thing?
+--| Start a continous (live) replication from source to target.
 --|
---| This sets the `retry` option, to repeatedly try to reconnect on connection loss.
+--| This sets the `live` option to `true`. For an explanation of the other options see https://pouchdb.com/api.html#replication
 --|
---| TODO: Find a good way to expose the change/paused/error/... events.
---| TODO: Allow cancelling.
-startReplication :: forall e.
-                    PouchDB ->
-                    PouchDB ->
-                    (ReplicationEvent -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-                    Aff (pouchdb :: POUCHDB | e) Unit
-startReplication source target eh = do
-  ee <- liftEff $ FFI.replicate source target (write {live: true, retry: true})
-  liftEff $ _on ee "active" (\_ -> eh Active)
-  liftEff $ _on ee "change" (\i -> eh (Change (unsafeCoerce i)))
-  liftEff $ _on ee "complete" (\i -> eh (Complete (unsafeCoerce i)))
-  liftEff $ _on ee "denied" (\f -> eh (Denied f))
-  liftEff $ _on ee "error" (\e -> eh (Error e))
-  liftEff $ _on ee "paused" (\e -> eh (Paused e))
-  pure unit
+--| The event handler will be called with replication events as they happen.
+--|
+--| Returns an effect with which you can cancel the replication.
+startReplication :: forall options e.
+  WriteForeign { live :: Boolean | options } =>
+  Subrow options ( retry :: Boolean
+                 , checkpoint :: Checkpoint
+                 , batch_size :: Int
+                 , batches_limit :: Int ) =>
+  RowLacks "live" options =>
+  PouchDB -> PouchDB -> {| options} -> (ReplicationEvent -> Eff (pouchdb :: POUCHDB | e) Unit) -> Eff (pouchdb :: POUCHDB | e) (Eff (pouchdb :: POUCHDB | e) Unit)
+startReplication source target options eh = do
+  ee <- FFI.replicate source target (write o)
+  _on ee "active" (\_ -> eh Active)
+  _on ee "change" (\i -> eh (Change (unsafeCoerce i)))
+  _on ee "complete" (\i -> eh (Complete (unsafeCoerce i)))
+  _on ee "denied" (\f -> eh (Denied f))
+  _on ee "error" (\e -> eh (Error e))
+  _on ee "paused" (\e -> eh (Paused e))
+  pure (_cancel ee)
+  where o :: { live :: Boolean | options }
+        o = insert (SProxy :: SProxy "live") true options
 
 
 -- Register a single-argument event handler on a node-style EventEmitter.
@@ -256,17 +271,28 @@ foreign import _on :: forall e.
   (Foreign -> Eff e Unit) -> -- handler taking 1 argument
   Eff e Unit
 
+-- Call .cancel() on a replication object
+foreign import _cancel :: forall e.
+  Foreign -> Eff e Unit
+
 
 -- TODO can we return a value *and* allow cancellation?
 --| Single-shot replication from source to target.
 --|
---| This blocks execution and only returns when replication is complete or encounters an error.
-singleShotReplication :: forall e.
+--| This is not `live` replication, and thus does not accept the `retry` option. For other options, see https://pouchdb.com/api.html#replication
+--|
+--| This "blocks execution" and only returns when replication is complete or encounters an error.
+singleShotReplication :: forall options e.
+  WriteForeign { | options } =>
+  Subrow options ( checkpoint :: Checkpoint
+                 , batch_size :: Int
+                 , batches_limit :: Int ) =>
   PouchDB ->
   PouchDB ->
+  { | options } ->
   Aff (pouchdb :: POUCHDB | e) (ReplicationInfo (end_time :: Foreign, status :: String))
-singleShotReplication source target = do
-  r <- fromEffFnAff (FFI.replicateTo source target (toForeign {}))
+singleShotReplication source target options = do
+  r <- fromEffFnAff (FFI.replicateTo source target (write options))
   pure (unsafeCoerce r)
 
 
