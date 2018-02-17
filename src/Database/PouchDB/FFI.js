@@ -1,7 +1,5 @@
 "use strict";
 
-const _pouchdb = require('pouchdb');
-
 function callback (e, r) {
     return function (err, response) {
         if (err)
@@ -20,7 +18,7 @@ function nonCanceller() {
 
 exports.pouchDB = function (options) {
     return function () {
-        return new _pouchdb(options);
+        return new PouchDB(options);
     }}
 
 exports.destroy = function (db) {
@@ -87,7 +85,7 @@ exports.replicate = function (source) {
     return function (target) {
         return function (options) {
             return function () {
-                return _pouchdb.replicate(source, target, options);
+                return PouchDB.replicate(source, target, options);
             }}}}
 
 exports.replicateTo = function (source) {
@@ -105,7 +103,7 @@ exports.sync = function (source) {
     return function (target) {
         return function (options) {
             return function () {
-                return _pouchdb.sync(source, target, options);
+                return PouchDB.sync(source, target, options);
             }}}}
 
 exports.putAttachment = function (db) {
