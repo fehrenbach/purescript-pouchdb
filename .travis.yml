@@ -6,10 +6,8 @@ install:
   - npm install -g bower purescript pulp
   - npm install pouchdb@6.4.2
 script:
-  - bower install --production
-  - pulp build
   - bower install
-  - pulp test
+  - make test
 after_success:
   - test $TRAVIS_TAG &&
     echo $GITHUB_TOKEN | pulp login &&
