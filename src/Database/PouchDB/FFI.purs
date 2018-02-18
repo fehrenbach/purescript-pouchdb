@@ -10,7 +10,7 @@ foreign import data PouchDB :: Type
 foreign import data POUCHDB :: Effect
 
 --| https://pouchdb.com/api.html#create_database
-foreign import pouchDB :: forall e. Foreign -> Eff (pouchdb :: POUCHDB | e) PouchDB
+foreign import pouchDB :: forall e. Foreign -> EffFnAff (pouchdb :: POUCHDB | e) PouchDB
 
 --| https://pouchdb.com/api.html#delete_database
 foreign import destroy :: forall e.

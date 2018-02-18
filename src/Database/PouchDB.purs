@@ -70,7 +70,7 @@ pouchDBLocal :: forall e options.
   WriteForeign { name :: String | options } =>
   Subrow options (adapter :: Adapter, auto_compaction :: Boolean, revs_limit :: Int) =>
   { name :: String | options } -> Aff (pouchdb :: POUCHDB | e) PouchDB
-pouchDBLocal options = liftEff $ FFI.pouchDB (write options)
+pouchDBLocal options = fromEffFnAff (FFI.pouchDB (write options))
 
 --| Create or open a remote database
 --|
@@ -87,7 +87,7 @@ pouchDBRemote :: forall e options.
                  , auth :: { username :: String, password :: String }
                  , skip_setup :: Boolean) =>
   { name :: String | options } -> Aff (pouchdb :: POUCHDB | e) PouchDB
-pouchDBRemote options = liftEff $ FFI.pouchDB (write options)
+pouchDBRemote options = fromEffFnAff (FFI.pouchDB (write options))
 
 
 --| Fetch a document by `_id`.

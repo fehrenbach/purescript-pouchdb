@@ -17,8 +17,13 @@ function nonCanceller() {
 }
 
 exports.pouchDB = function (options) {
-    return function () {
-        return new PouchDB(options);
+    return function (e, r) {
+        try {
+            r(new PouchDB(options));
+        } catch (err) {
+            e(err);
+        }
+        return nonCanceller();
     }}
 
 exports.destroy = function (db) {
