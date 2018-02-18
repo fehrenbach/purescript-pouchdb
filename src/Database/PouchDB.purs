@@ -49,14 +49,6 @@ derive newtype instance writeForeignRev :: WriteForeign (Rev d)
 class Subrow (r :: # Type) (s :: # Type)
 instance subrow :: Union r t s => Subrow r s
 
-data Adapter = Idb | Leveldb | Websql | Http
-
-instance writeForeignAdapter :: WriteForeign Adapter where
-  writeImpl Idb = write "idb"
-  writeImpl Leveldb = write "leveldb"
-  writeImpl Websql = write "websql"
-  writeImpl Http = write "http"
-
 --| Create or open a local database
 --|
 --| For example, the follwing opens (and creates if it does not exist) the local database "movies" with automatic compaction enabled:
@@ -68,7 +60,7 @@ instance writeForeignAdapter :: WriteForeign Adapter where
 --| `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
 pouchDBLocal :: forall e options.
   WriteForeign { name :: String | options } =>
-  Subrow options (adapter :: Adapter, auto_compaction :: Boolean, revs_limit :: Int) =>
+  Subrow options (adapter :: String, auto_compaction :: Boolean, revs_limit :: Int) =>
   { name :: String | options } -> Aff (pouchdb :: POUCHDB | e) PouchDB
 pouchDBLocal options = fromEffFnAff (FFI.pouchDB (write options))
 
