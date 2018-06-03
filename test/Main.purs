@@ -2,24 +2,19 @@ module Test.Main where
 
 import Prelude
 
-import Control.Monad.Aff (attempt, delay, runAff)
-import Control.Monad.Aff.AVar (AVAR, makeEmptyVar, putVar, takeVar)
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (Error)
-import Control.Parallel (parallel, sequential)
+import Control.Parallel.Class (parallel, sequential)
 import Data.Either (Either(..))
 import Data.Foldable (oneOf)
-import Data.Foreign.NullOrUndefined (NullOrUndefined(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.Time.Duration (Milliseconds(..))
 import Database.PouchDB (Checkpoint(..), Id(..), Rev, bulkGet, changesLiveSinceNow, createDoc, deleteDoc, destroy, getDoc, info, pouchDBLocal, saveDoc, singleShotReplication)
-import Database.PouchDB.FFI (POUCHDB)
+import Effect (Effect)
+import Effect.Aff (Error, attempt, delay, runAff)
+import Effect.Aff.AVar (empty, put, take)
 import Simple.JSON (class ReadForeign, class WriteForeign)
 import Test.Unit (failure, suite, test)
 import Test.Unit.Assert as Assert
-import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -30,7 +25,7 @@ derive newtype instance writeForeignActor :: WriteForeign Actor
 derive newtype instance readForeignActor :: ReadForeign Actor
 
 
-newtype Movie = Movie { _id :: Id Movie, _rev :: Rev Movie, title :: String, year :: Int, actors :: Array (Id Actor), sequel :: NullOrUndefined (Id Movie)}
+newtype Movie = Movie { _id :: Id Movie, _rev :: Rev Movie, title :: String, year :: Int, actors :: Array (Id Actor), sequel :: Maybe (Id Movie)}
 
 derive instance newtypeMovie :: Newtype Movie _
 derive newtype instance writeForeignMovie :: WriteForeign Movie
@@ -43,9 +38,9 @@ derive newtype instance writeForeignAbc :: WriteForeign Abc
 derive newtype instance readForeignAbc :: ReadForeign Abc
 
 -- TODO figure out how to properly do setup and teardown, this is all a bit brittle
-main :: forall e. Eff (pouchdb :: POUCHDB, console :: CONSOLE, testOutput :: TESTOUTPUT, avar :: AVAR | e) Unit
+main :: Effect Unit
 main = runTest do
-  let juno = {title: "Juno", year: 2007, actors: map wrap ["Ellen Page", "Michael Cera"], sequel: NullOrUndefined Nothing }
+  let juno = {title: "Juno", year: 2007, actors: map wrap ["Ellen Page", "Michael Cera"], sequel: Nothing }
   suite "info" do
     test "local database name" do
       db <- pouchDBLocal { name: "localdatabase"}
@@ -137,14 +132,14 @@ main = runTest do
       -- 3. We put a document b and race that with a delayed put to the AVar directly (fake id, rev, deleted)
       -- 4. We read the AVar and check that we actually got the change for b, not for a, and not the timeout fake
       a :: Abc <- createDoc db (Id "a") {a: "a", b: false, c: []}
-      var <- makeEmptyVar
-      changesLiveSinceNow db (\r -> void $ runAff (const (pure unit)) (putVar r var))
+      var <- empty
+      changesLiveSinceNow db (\r -> void $ runAff (const (pure unit)) (put r var))
       _ <- sequential $ oneOf
              [ parallel (do b :: Abc <- createDoc db (Id "b") {a: "b", b: true, c: [1]}
                             pure unit)
              , parallel (do delay (Milliseconds 50.0)
-                            putVar { id: "nope", rev: "there was a timeout", deleted: false } var)
+                            put { id: "nope", rev: "there was a timeout", deleted: false } var)
              ]
-      res <- takeVar var
+      res <- take var
       Assert.equal res.id "b"
       destroy db

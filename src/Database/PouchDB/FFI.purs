@@ -1,128 +1,126 @@
 module Database.PouchDB.FFI where
 
-import Control.Monad.Aff.Compat (EffFnAff)
-import Control.Monad.Eff (kind Effect, Eff)
-import Data.Foreign (Foreign)
+import Effect (Effect)
+import Effect.Aff.Compat (EffectFnAff)
+import Foreign (Foreign)
 import Prelude (Unit)
 
 foreign import data PouchDB :: Type
 
-foreign import data POUCHDB :: Effect
-
 --| https://pouchdb.com/api.html#create_database
-foreign import pouchDB :: forall e. Foreign -> EffFnAff (pouchdb :: POUCHDB | e) PouchDB
+foreign import pouchDB :: Foreign -> EffectFnAff PouchDB
 
 --| https://pouchdb.com/api.html#delete_database
-foreign import destroy :: forall e.
+foreign import destroy :: 
   PouchDB -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) { ok :: Boolean }
+  EffectFnAff { ok :: Boolean }
 
 --| https://pouchdb.com/api.html#create_document
-foreign import put :: forall e.
+foreign import put :: 
   PouchDB -> Foreign -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) {ok::Boolean, id::String, rev::String}
+  EffectFnAff {ok::Boolean, id::String, rev::String}
 
 --| https://pouchdb.com/api.html#create_document
-foreign import post :: forall e.
+foreign import post :: 
   PouchDB -> Foreign -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) {ok::Boolean, id::String, rev::String}
+  EffectFnAff {ok::Boolean, id::String, rev::String}
 
 --| https://pouchdb.com/api.html#fetch_document
-foreign import get :: forall e.
+foreign import get :: 
   PouchDB -> String -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#delete_document
-foreign import remove :: forall e.
+foreign import remove ::
   PouchDB -> Foreign -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) {ok::Boolean, id::String, rev::String}
+  EffectFnAff {ok::Boolean, id::String, rev::String}
 
 --| https://pouchdb.com/api.html#batch_create
-foreign import bulkDocs :: forall e.
+foreign import bulkDocs ::
   PouchDB -> Array Foreign -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) (Array Foreign)
+  EffectFnAff (Array Foreign)
 
 --| https://pouchdb.com/api.html#batch_fetch
-foreign import allDocs :: forall e.
+foreign import allDocs :: 
   PouchDB -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) {total_rows::Int, offset::Int, rows::Array Foreign}
+  EffectFnAff {total_rows::Int, offset::Int, rows::Array Foreign}
 
 --| https://pouchdb.com/api.html#changes
 -- TODO This returns an event emitter.
 -- I'm not quite sure what to do with that.
 -- Maybe we should use some library, like this https://github.com/joneshf/purescript-node-events
-foreign import changes :: forall e.
+foreign import changes :: 
   PouchDB -> Foreign ->
-  Eff (pouchdb :: POUCHDB | e) Foreign
+  Effect Foreign
 
 --| https://pouchdb.com/api.html#replication
 -- TODO This returns an event emitter, like changes.
-foreign import replicate :: forall e.
+foreign import replicate ::
   PouchDB -> PouchDB -> Foreign ->
-  Eff (pouchdb :: POUCHDB | e) Foreign
+  Effect Foreign
 
 --| Single-shot replication
 --|
 --| Do not set `live : true` on the option parameter!
-foreign import replicateTo :: forall e.
+foreign import replicateTo :: 
   PouchDB -> PouchDB -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#sync
-foreign import sync :: forall e.
+foreign import sync ::
   PouchDB -> PouchDB -> Foreign ->
-  Eff (pouchdb :: POUCHDB | e) Foreign
+  Effect Foreign
 
 --| https://pouchdb.com/api.html#save_attachment
-foreign import putAttachment :: forall e.
+foreign import putAttachment ::
   PouchDB -> String -> String -> String ->
   Foreign -> -- Blob in browser, or Buffer in node, or base64 string
   String ->
-  EffFnAff (pouchdb :: POUCHDB | e) {ok::Boolean, id::String, rev::String}
+  EffectFnAff {ok::Boolean, id::String, rev::String}
 
 --| https://pouchdb.com/api.html#get_attachment
 -- TODO Attachments are Blobs in browsers and Buffers in node, not sure how to deal with that.
-foreign import getAttachment :: forall e.
+foreign import getAttachment ::
   PouchDB -> String -> String -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#delete_attachment
-foreign import removeAttachment :: forall e.
+foreign import removeAttachment ::
   PouchDB -> String -> String -> String ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#query_database
-foreign import query :: forall e.
+foreign import query ::
   PouchDB -> Foreign -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) { offset :: Int, rows :: Array Foreign, total_rows :: Int }
+  EffectFnAff { offset :: Int, rows :: Array Foreign, total_rows :: Int }
 
 --| https://pouchdb.com/api.html#view_cleanup
-foreign import viewCleanup :: forall e.
+foreign import viewCleanup :: 
   PouchDB ->
-  EffFnAff (pouchdb :: POUCHDB | e) { ok :: Boolean }
+  EffectFnAff { ok :: Boolean }
 
 --| https://pouchdb.com/api.html#database_information
-foreign import info :: forall e.
+foreign import info ::
   PouchDB ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#compaction
-foreign import compact :: forall e.
+foreign import compact :: 
   PouchDB -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#revisions_diff
-foreign import revsDiff :: forall e.
+foreign import revsDiff ::
   PouchDB -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) Foreign
+  EffectFnAff Foreign
 
 --| https://pouchdb.com/api.html#bulk_get
-foreign import bulkGet :: forall e.
+foreign import bulkGet ::
   PouchDB -> Foreign ->
-  EffFnAff (pouchdb :: POUCHDB | e) {results::Array Foreign}
+  EffectFnAff {results::Array Foreign}
 
 --| https://pouchdb.com/api.html#close_database
-foreign import close :: forall e.
+foreign import close ::
   PouchDB ->
-  (Unit -> Eff (pouchdb :: POUCHDB | e) Unit) ->
-  Eff (pouchdb :: POUCHDB | e) Unit
+  (Unit -> Effect Unit) ->
+  Effect Unit
