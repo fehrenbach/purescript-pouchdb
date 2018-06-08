@@ -49,30 +49,30 @@ derive newtype instance writeForeignRev :: WriteForeign (Rev d)
 class Subrow (r :: # Type) (s :: # Type)
 instance subrow :: Union r t s => Subrow r s
 
---| Create or open a local database
---|
---| For example, the follwing opens (and creates if it does not exist) the local database "movies" with automatic compaction enabled:
---| ```purescript
---| do moviedb <- pouchDBLocal { name: "movies", auto_compaction: true }
---|    -- do something with your database
---| ```
---|
---| `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
+-- | Create or open a local database
+-- |
+-- | For example, the follwing opens (and creates if it does not exist) the local database "movies" with automatic compaction enabled:
+-- | ```purescript
+-- | do moviedb <- pouchDBLocal { name: "movies", auto_compaction: true }
+-- |    -- do something with your database
+-- | ```
+-- |
+-- | `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
 pouchDBLocal :: forall options.
   WriteForeign { name :: String | options } =>
   Subrow options (adapter :: String, auto_compaction :: Boolean, revs_limit :: Int) =>
   { name :: String | options } -> Aff PouchDB
 pouchDBLocal options = fromEffectFnAff (FFI.pouchDB (write options))
 
---| Create or open a remote database
---|
---| For example, the follwing opens a connection to the "query-movies" database on cloudant.com without trying to create it should it not exist already (`skip_setup`):
---| ```purescript
---| do moviedb <- pouchDBRemote { name: "https://examples.cloudant.com/query-movies", skip_setup: true }
---|    -- do something with your database
---| ```
---|
---| `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
+-- | Create or open a remote database
+-- |
+-- | For example, the follwing opens a connection to the "query-movies" database on cloudant.com without trying to create it should it not exist already (`skip_setup`):
+-- | ```purescript
+-- | do moviedb <- pouchDBRemote { name: "https://examples.cloudant.com/query-movies", skip_setup: true }
+-- |    -- do something with your database
+-- | ```
+-- |
+-- | `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
 pouchDBRemote :: forall options.
   WriteForeign { name :: String | options } =>
   Subrow options ( ajax :: { cache :: Boolean, timeout :: Int, withCredentials :: Boolean }
@@ -82,7 +82,7 @@ pouchDBRemote :: forall options.
 pouchDBRemote options = fromEffectFnAff (FFI.pouchDB (write options))
 
 
---| Fetch a document by `_id`.
+-- | Fetch a document by `_id`.
 getDoc :: forall doc dat.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
@@ -93,29 +93,29 @@ getDoc db (Id id) = do
   either (throwError <<< error <<< show) pure (read r)
 
 
---| Get information about a database
+-- | Get information about a database
 info :: PouchDB -> Aff { db_name :: String, doc_count :: Int, update_seq :: Int }
 info db = do
   r <- fromEffectFnAff (FFI.info db)
   either (throwError <<< error <<< show) pure (read r)
 
 
---| Deletes the database.
---|
---| DO NOT try to use the handle again.
---| You can create a new PouchDB object using the same database name.
+-- | Deletes the database.
+-- |
+-- | DO NOT try to use the handle again.
+-- | You can create a new PouchDB object using the same database name.
 destroy :: PouchDB -> Aff Unit
 destroy db = void (fromEffectFnAff (FFI.destroy db (unsafeToForeign {})))
 
 
---| Save the given proto-document as a new document with the given id.
---|
---| The document doc needs to be a newtype over a with `_id`, `_rev`
---| and some data. The proto-document is just the data record, without
---| `_id` and `_rev` fields.
---|
---| This is the recommended way to generate documents, rather than relying on
---| PouchDB to make up a random document ID for you.
+-- | Save the given proto-document as a new document with the given id.
+-- |
+-- | The document doc needs to be a newtype over a with `_id`, `_rev`
+-- | and some data. The proto-document is just the data record, without
+-- | `_id` and `_rev` fields.
+-- |
+-- | This is the recommended way to generate documents, rather than relying on
+-- | PouchDB to make up a random document ID for you.
 createDoc :: forall doc dat.
   WriteForeign { _id :: Id doc | dat } =>
   Lacks "_id" dat =>
@@ -130,9 +130,9 @@ createDoc db i protoDoc = do
     doc = insert (SProxy :: SProxy "_id") i protoDoc
 
 
---| Write a (modified) document back to the database.
---|
---| On success, returns the document itself with updated `_rev`.
+-- | Write a (modified) document back to the database.
+-- |
+-- | On success, returns the document itself with updated `_rev`.
 saveDoc :: forall doc dat.
   WriteForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
@@ -142,9 +142,9 @@ saveDoc db doc = do
   pure (wrap (unwrap doc) {_rev = Rev r.rev})
 
 
---| Delete a document from the database
---|
---| Unlike PouchDB's `remove`, this does not clear all fields, but merely sets `_deleted: true`.
+-- | Delete a document from the database
+-- |
+-- | Unlike PouchDB's `remove`, this does not clear all fields, but merely sets `_deleted: true`.
 deleteDoc :: forall doc dat.
   WriteForeign { _deleted :: Boolean, _id :: Id doc, _rev :: Rev doc | dat } =>
   Lacks "_deleted" dat =>
@@ -159,13 +159,13 @@ deleteDoc db doc = do
     deleted = insert (SProxy :: SProxy "_deleted") true udoc
 
 
---| Fetch multiple documents at once.
---|
---| This will throw the first parse error only.
---|
---| This uses PouchDB's `allDocs` under the hood. It should not be
---| confused with PouchDB's actual `bulkGet` which is used mainly
---| internally for replication.
+-- | Fetch multiple documents at once.
+-- |
+-- | This will throw the first parse error only.
+-- |
+-- | This uses PouchDB's `allDocs` under the hood. It should not be
+-- | confused with PouchDB's actual `bulkGet` which is used mainly
+-- | internally for replication.
 bulkGet :: forall doc dat.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
@@ -175,12 +175,12 @@ bulkGet db ids = do
   either (throwError <<< error <<< show) pure (traverse (read <<< _.doc <<< unsafeCoerce) r.rows)
 
 
---| Write multiple (modified) documents back to the database.
---|
---| Note that this is not a transaction. Individual writes might fail but other changes might already have been made.
---| This function will throw (only) the first error, if any.
---|
---| As far as I can tell, PouchDB will increase the revision number even if you write the same exact document that's already there. You might want to avoid that.
+-- | Write multiple (modified) documents back to the database.
+-- |
+-- | Note that this is not a transaction. Individual writes might fail but other changes might already have been made.
+-- | This function will throw (only) the first error, if any.
+-- |
+-- | As far as I can tell, PouchDB will increase the revision number even if you write the same exact document that's already there. You might want to avoid that.
 bulkSave :: forall dat doc.
   ReadForeign doc =>
   WriteForeign doc =>
@@ -227,13 +227,13 @@ instance writeForeignCheckpoint :: WriteForeign Checkpoint where
 
 
 -- Should we pass a record of event handlers instead of this ReplicationEvent datatype thing?
---| Start a continous (live) replication from source to target.
---|
---| This sets the `live` option to `true`. For an explanation of the other options see https://pouchdb.com/api.html#replication
---|
---| The event handler will be called with replication events as they happen.
---|
---| Returns an effect with which you can cancel the replication.
+-- | Start a continous (live) replication from source to target.
+-- |
+-- | This sets the `live` option to `true`. For an explanation of the other options see https://pouchdb.com/api.html#replication
+-- |
+-- | The event handler will be called with replication events as they happen.
+-- |
+-- | Returns an effect with which you can cancel the replication.
 startReplication :: forall options.
   WriteForeign { live :: Boolean | options } =>
   Subrow options ( retry :: Boolean
@@ -269,11 +269,11 @@ foreign import _cancel ::
 
 
 -- TODO can we return a value *and* allow cancellation?
---| Single-shot replication from source to target.
---|
---| This is not `live` replication, and thus does not accept the `retry` option. For other options, see https://pouchdb.com/api.html#replication
---|
---| This "blocks execution" and only returns when replication is complete or encounters an error.
+-- | Single-shot replication from source to target.
+-- |
+-- | This is not `live` replication, and thus does not accept the `retry` option. For other options, see https://pouchdb.com/api.html#replication
+-- |
+-- | This "blocks execution" and only returns when replication is complete or encounters an error.
 singleShotReplication :: forall options.
   WriteForeign { | options } =>
   Subrow options ( checkpoint :: Checkpoint
@@ -288,7 +288,7 @@ singleShotReplication source target options = do
   pure (unsafeCoerce r)
 
 
---| Simple keys query, no reduce, no docs included.
+-- | Simple keys query, no reduce, no docs included.
 viewKeys :: forall l k v.
   ReadForeign { id :: Id l, key :: k, value :: v } =>
   WriteForeign k =>
@@ -299,9 +299,9 @@ viewKeys db view keys = do
   either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
 
 
---| Simple keys query, no reduce, include docs.
---|
---| Throws the first parse error only (if any).
+-- | Simple keys query, no reduce, include docs.
+-- |
+-- | Throws the first parse error only (if any).
 viewKeysInclude :: forall l doc dat k v.
   ReadForeign { doc :: doc, id :: Id l, key :: k, value :: v } =>
   WriteForeign k =>
@@ -312,12 +312,12 @@ viewKeysInclude db view keys = do
     either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
 
 
---| Simple keys query, no reduce, only return docs.
---|
---| This is like `viewKeysInclude`, except that you only get the `doc`s.
---|
---| This is useful to look up a bunch of documents by a secondary key.
---| Something like `bulkGet`, except for a different key than `_id`.
+-- | Simple keys query, no reduce, only return docs.
+-- |
+-- | This is like `viewKeysInclude`, except that you only get the `doc`s.
+-- |
+-- | This is useful to look up a bunch of documents by a secondary key.
+-- | Something like `bulkGet`, except for a different key than `_id`.
 viewKeysDoc :: forall doc dat k.
   ReadForeign doc =>
   WriteForeign k =>
@@ -331,7 +331,7 @@ viewKeysDoc db view keys = do
     docs r = map _.doc (unsafeCoerce r.rows) -- TODO we could do this with a destructive map
 
 
---| Range query with limit, no reduce, no docs.
+-- | Range query with limit, no reduce, no docs.
 viewRangeLimit :: forall k l v.
   ReadForeign k =>
   WriteForeign k =>
@@ -343,9 +343,9 @@ viewRangeLimit db view {startkey, endkey} limit = do
   either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
 
 
---| Fetch all docs between startkey and endkey (inclusive)
---|
---| Consider using `rangeFromPrefix` when looking for doc ids starting with some string.
+-- | Fetch all docs between startkey and endkey (inclusive)
+-- |
+-- | Consider using `rangeFromPrefix` when looking for doc ids starting with some string.
 allDocsRange :: forall dat doc.
   ReadForeign doc =>
   Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
@@ -354,20 +354,32 @@ allDocsRange db {startkey, endkey} = do
   r <- fromEffectFnAff (FFI.allDocs db (write { startkey, endkey, include_docs: true }))
   either (throwError <<< error <<< show) pure (traverse (read <<< _.doc <<< unsafeCoerce) r.rows)
 
+-- | Make a query to the primary index, like PouchDB's `allDocs`,
+-- | optionally with a start and end key.
+-- |
+-- | The options are those that do not affect the return type, in
+-- | particular `include_docs` is not allowed. If you need the
+-- | documents, consider `allDocsRange`.
+allDocsNoIncludeRange
+  :: forall options.
+     Subrow options (startkey :: String, endkey :: String, inclusive_end :: Boolean, limit :: Int, descending :: Boolean) =>
+     PouchDB -> {| options } -> Aff { offset :: Int, total_rows :: Int, rows :: Array { id :: String, key :: String, value :: { rev :: String } } }
+allDocsNoIncludeRange db opts = coerce (fromEffectFnAff (FFI.allDocs db (unsafeCoerce opts)))
+  where coerce = unsafeCoerce :: Aff { total_rows :: Int, offset :: Int, rows :: Array Foreign } -> Aff { offset :: Int, total_rows :: Int, rows :: Array { id :: String, key :: String, value :: { rev :: String } } }
 
---| Construct a {startkey, endkey} record for range queries that should
---| match everything that starts with a given string. As recommended in
---| in the CouchDB docs, we just append the special character \uFFF0 to
---| the string to obtain the endkey.
---| (This means it doesn't work if you use that in your doc ids/keys!)
---| https://wiki.apache.org/couchdb/View_collation#String_Ranges
+-- | Construct a {startkey, endkey} record for range queries that should
+-- | match everything that starts with a given string. As recommended in
+-- | in the CouchDB docs, we just append the special character \uFFF0 to
+-- | the string to obtain the endkey.
+-- | (This means it doesn't work if you use that in your doc ids/keys!)
+-- | https://wiki.apache.org/couchdb/View_collation#String_Ranges
 rangeFromPrefix :: String -> { startkey :: String, endkey :: String }
 rangeFromPrefix s = { startkey: s, endkey: s <> "￰" }
 
 
---| Reduce query over a range of keys, with group_level.
---|
---| The types here are less than ideal, because we can have compound keys with different types, e.g. movie Id (as string) and year (as Int).
+-- | Reduce query over a range of keys, with group_level.
+-- |
+-- | The types here are less than ideal, because we can have compound keys with different types, e.g. movie Id (as string) and year (as Int).
 viewRangeGroupLevel :: forall k v. -- NOTE: We could probably solve the weak typing issues using HLists
   WriteForeign k =>
   ReadForeign k =>
@@ -378,7 +390,7 @@ viewRangeGroupLevel db view { startkey, endkey } group_level = do
   either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
 
 
---| Subscribe to future changes
+-- | Subscribe to future changes
 changesLiveSinceNow ::
   PouchDB -> ({ id :: String, rev :: String, deleted :: Boolean } -> Effect Unit) -> Aff Unit
 changesLiveSinceNow db handler = liftEffect $ do
