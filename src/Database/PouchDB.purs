@@ -6,6 +6,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (runExcept)
 import Data.Array (zipWith)
 import Data.Either (Either(..), either)
+import Data.Hashable (class Hashable)
 import Data.List.NonEmpty (NonEmptyList)
 import Data.Maybe (maybe)
 import Data.Newtype (class Newtype, unwrap, wrap)
@@ -31,6 +32,7 @@ newtype Id (d :: Type) = Id String
 derive instance newtypeId :: Newtype (Id d) _
 derive instance eqId :: Eq (Id d)
 derive instance ordId :: Ord (Id d)
+derive newtype instance hashableId :: Hashable (Id d)
 derive newtype instance showId :: Show (Id d)
 derive newtype instance readForeignId :: ReadForeign (Id d)
 derive newtype instance writeForeignId :: WriteForeign (Id d)
@@ -41,6 +43,7 @@ newtype Rev (d :: Type) = Rev String
 derive instance newtypeRev :: Newtype (Rev d) _
 derive instance eqRev :: Eq (Rev d)
 derive instance ordRev :: Ord (Rev d)
+derive newtype instance hashableRev :: Hashable (Rev d)
 derive newtype instance showRev :: Show (Rev d)
 derive newtype instance readForeignRev :: ReadForeign (Rev d)
 derive newtype instance writeForeignRev :: WriteForeign (Rev d)
