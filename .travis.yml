@@ -4,7 +4,7 @@ dist: trusty
 sudo: required
 install:
   - npm install -g bower purescript pulp
-  - npm install pouchdb@6.4.2
+  - npm install pouchdb@7.0.0
 script:
   - bower install
   - make test

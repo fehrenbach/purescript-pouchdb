@@ -18,6 +18,7 @@ import Effect.Aff (Aff)
 import Effect.Aff.Compat (fromEffectFnAff)
 import Effect.Class (liftEffect)
 import Effect.Exception (Error, error)
+import Effect.Uncurried (EffectFn2)
 import Foreign (Foreign, ForeignError, readBoolean, readNullOrUndefined, readString, unsafeToForeign)
 import Foreign.Index ((!))
 import Prim.Row (class Lacks, class Union)
@@ -63,7 +64,10 @@ instance subrow :: Union r t s => Subrow r s
 -- | `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
 pouchDBLocal :: forall options.
   WriteForeign { name :: String | options } =>
-  Subrow options (adapter :: String, auto_compaction :: Boolean, revs_limit :: Int) =>
+  Subrow options ( adapter :: String
+                 , auto_compaction :: Boolean
+                 , revs_limit :: Int
+                 , deterministic_revs :: Boolean ) =>
   { name :: String | options } -> Aff PouchDB
 pouchDBLocal options = fromEffectFnAff (FFI.pouchDB (write options))
 
@@ -78,7 +82,7 @@ pouchDBLocal options = fromEffectFnAff (FFI.pouchDB (write options))
 -- | `name` is required, for the other options, see https://pouchdb.com/api.html#create_database
 pouchDBRemote :: forall options.
   WriteForeign { name :: String | options } =>
-  Subrow options ( ajax :: { cache :: Boolean, timeout :: Int, withCredentials :: Boolean }
+  Subrow options ( fetch :: EffectFn2 Foreign Foreign Foreign -- TODO better types
                  , auth :: { username :: String, password :: String }
                  , skip_setup :: Boolean) =>
   { name :: String | options } -> Aff PouchDB
@@ -209,7 +213,7 @@ type ReplicationInfo ext =
   , errors :: Array Foreign
   , last_seq :: Int
   , ok :: Boolean
-  , start_time :: Foreign -- TODO I *think* this is a Date. Might want to use purescript-js-date/purescript-datetime.
+  , start_time :: String
   | ext }
 
 -- TODO these could be more precise, I think
@@ -285,7 +289,7 @@ singleShotReplication :: forall options.
   PouchDB ->
   PouchDB ->
   { | options } ->
-  Aff (ReplicationInfo (end_time :: Foreign, status :: String))
+  Aff (ReplicationInfo (end_time :: String, status :: String))
 singleShotReplication source target options = do
   r <- fromEffectFnAff (FFI.replicateTo source target (write options))
   pure (unsafeCoerce r)
