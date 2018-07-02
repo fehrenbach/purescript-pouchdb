@@ -306,6 +306,89 @@ viewKeys db view keys = do
   either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
 
 
+-- allDocs/view | range/keys | includeDocs?/only/+values/+revisions?
+-- =============+============+=============
+-- allDocs        Range        
+-- allDocs        Range        IncludeDocs
+-- allDocs        Range        DocsOnly
+-- allDocs        Keys                        -- pointless?
+-- allDocs        Keys         IncludeDocs    -- pretty useless
+-- allDocs        Keys         DocsOnly       -- == bulkGet?
+-- view           Range        IncludeDocs
+-- view           Range        NoIncludeDocs
+-- view           Range        DocsOnly
+-- view           Range        ValuesOnly
+-- view           Keys         NoIncludeDocs
+-- view           Keys         IncludeDocs
+-- view           Keys         DocsOnly
+-- reduce ...
+
+-- allDocsRange
+-- allDocsRangeIncludeDocs
+-- allDocsRangeDocsOnly
+
+-- allDocsKeys
+-- allDocsKeysIncludeDocs
+-- allDocsKeysDocsOnly == bulkGet
+
+-- viewRange
+-- viewRangeIncludeDocs
+-- viewRangeDocsOnly
+-- viewRangeValuesOnly
+
+-- viewKeys
+-- viewKeysIncludeDocs
+-- viewKeysDocsOnly
+-- viewKeysValuesOnly
+
+-- Range options: startkey, endkey, descending, limit, inclusive_end, (skip)
+-- View options: stale: StaleOk | UpdateAfter
+
+type RangeOptions a r = (startkey :: a, endkey :: a, inclusive_end :: Boolean, descending :: Boolean, limit :: Int | r)
+
+-- | Query primary index for documents only.
+allDocsRangeDocsOnly :: forall dat doc options.
+  ReadForeign doc =>
+  Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
+  WriteForeign { include_docs :: Boolean | options } =>
+  Lacks "include_docs" options =>
+  Subrow options (RangeOptions String ()) =>
+  PouchDB -> {| options} -> Aff (Array doc)
+allDocsRangeDocsOnly db options = do
+  let opts = insert (SProxy :: SProxy "include_docs") true options :: { include_docs :: Boolean | options }
+  r <- fromEffectFnAff (FFI.allDocs db (write opts))
+  either (throwError <<< error <<< show) pure (traverse (read <<< _.doc <<< unsafeCoerce) r.rows)
+
+-- | Query primary index. Do not include documents.
+allDocsRange :: forall options.
+  WriteForeign {| options} =>
+  Subrow options (RangeOptions String ()) =>
+  PouchDB -> {| options } -> Aff (Array { id :: String, key :: String, value :: { rev :: String } })
+allDocsRange db opts = fromEffectFnAff (FFI.allDocs db (write opts)) <#> _.rows <#> coerce
+  where coerce = unsafeCoerce :: Array Foreign -> Array { id :: String, key :: String, value :: { rev :: String } }
+
+data Stale = StaleOk | UpdateAfter
+
+instance writeForeignStale :: WriteForeign Stale where
+  writeImpl StaleOk = write "ok"
+  writeImpl UpdateAfter = write "update_after"
+
+type ViewOptions r = (stale :: Stale | r)
+
+-- | Query a secondary index. Do not include docs. Do not reduce.
+viewRange :: forall k l v options.
+  ReadForeign k =>
+  WriteForeign k =>
+  ReadForeign v =>
+  WriteForeign { reduce :: Boolean | options } =>
+  Lacks "reduce" options =>
+  Subrow options (ViewOptions (RangeOptions k ())) =>
+  PouchDB -> String -> {|options} -> Aff (Array { id :: Id l, key :: k, value :: v })
+viewRange db view options = do
+  let opts = insert (SProxy :: SProxy "reduce") false options :: { reduce :: Boolean | options }
+  r <- fromEffectFnAff (FFI.query db (write view) (write opts))
+  either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
+
 -- | Simple keys query, no reduce, include docs.
 -- |
 -- | Throws the first parse error only (if any).
@@ -317,7 +400,6 @@ viewKeysInclude :: forall l doc dat k v.
 viewKeysInclude db view keys = do
     r <- fromEffectFnAff (FFI.query db (write view) (write { keys, reduce: false, include_docs: true }))
     either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
-
 
 -- | Simple keys query, no reduce, only return docs.
 -- |
@@ -336,43 +418,6 @@ viewKeysDoc db view keys = do
   where
     docs :: { offset :: Int, rows :: Array Foreign, total_rows :: Int } -> Array Foreign
     docs r = map _.doc (unsafeCoerce r.rows) -- TODO we could do this with a destructive map
-
-
--- | Range query with limit, no reduce, no docs.
-viewRangeLimit :: forall k l v.
-  ReadForeign k =>
-  WriteForeign k =>
-  ReadForeign v =>
-  -- Should this constrain the type variable l?
-  PouchDB -> String -> {startkey :: k, endkey :: k} -> Int -> Aff (Array { id :: Id l, key :: k, value :: v })
-viewRangeLimit db view {startkey, endkey} limit = do
-  r <- fromEffectFnAff (FFI.query db (write view) (write { startkey, endkey, limit, reduce: false }))
-  either (throwError <<< error <<< show) pure (read (unsafeToForeign r.rows))
-
-
--- | Fetch all docs between startkey and endkey (inclusive)
--- |
--- | Consider using `rangeFromPrefix` when looking for doc ids starting with some string.
-allDocsRange :: forall dat doc.
-  ReadForeign doc =>
-  Newtype doc { _id :: Id doc, _rev :: Rev doc | dat } =>
-  PouchDB -> { startkey :: String, endkey :: String } -> Aff (Array doc)
-allDocsRange db {startkey, endkey} = do
-  r <- fromEffectFnAff (FFI.allDocs db (write { startkey, endkey, include_docs: true }))
-  either (throwError <<< error <<< show) pure (traverse (read <<< _.doc <<< unsafeCoerce) r.rows)
-
--- | Make a query to the primary index, like PouchDB's `allDocs`,
--- | optionally with a start and end key.
--- |
--- | The options are those that do not affect the return type, in
--- | particular `include_docs` is not allowed. If you need the
--- | documents, consider `allDocsRange`.
-allDocsNoIncludeRange
-  :: forall options.
-     Subrow options (startkey :: String, endkey :: String, inclusive_end :: Boolean, limit :: Int, descending :: Boolean) =>
-     PouchDB -> {| options } -> Aff { offset :: Int, total_rows :: Int, rows :: Array { id :: String, key :: String, value :: { rev :: String } } }
-allDocsNoIncludeRange db opts = coerce (fromEffectFnAff (FFI.allDocs db (unsafeCoerce opts)))
-  where coerce = unsafeCoerce :: Aff { total_rows :: Int, offset :: Int, rows :: Array Foreign } -> Aff { offset :: Int, total_rows :: Int, rows :: Array { id :: String, key :: String, value :: { rev :: String } } }
 
 -- | Construct a {startkey, endkey} record for range queries that should
 -- | match everything that starts with a given string. As recommended in
