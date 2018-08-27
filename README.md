@@ -27,6 +27,18 @@ It should be possible to use the same technique to make this work with browserif
 
 See also the [PouchDB installation documentation](https://pouchdb.com/download.html).
 
+## Disclaimer
+
+This library exposes a thin PureScript layer over the JavaScript API in `Databases.PouchDB.FFI`.
+
+However, for the most part (`Databases.PouchDB`), this library is very opinionated and tries to make common, structured use of PouchDB safe and easy.
+It uses and requires client code to use `purescript-aff`, `purescript-simple-json`, newtypes, etc. See blow.
+
+Use the FFI module if you need something the higher-level API cannot do.
+Also use the FFI module if you really want to use different JSON (de-)serialization or otherwise disagree with choices made by the more opinionated interface.
+
+And feel free to suggest improvements to either.
+
 ## The Id and Rev newtypes and document newtypes
 
 PouchDB is a schemaless document database.
